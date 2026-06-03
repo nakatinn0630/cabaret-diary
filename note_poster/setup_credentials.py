@@ -2,18 +2,17 @@
 """
 setup_credentials.py
 
-note のログイン情報を macOS Keychain / システムの keyring に保存する。
-note_poster.py を使う前に一度だけ実行する。
+note のログイン情報（メールアドレス＋パスワード）を
+macOS の Keychain に安全に保存するための初回セットアップスクリプト。
 
 使い方:
     python setup_credentials.py
 
-保存先:
-    サービス名 "note-auto-poster" として keyring に保存される。
-    macOS では Keychain、Linux では Secret Service (kwallet / gnome-keyring) が使われる。
+一度実行すれば、認証情報は macOS Keychain に暗号化保存される。
+パスワードがソースコードや平文ファイルに残ることはない。
 
-削除したい場合:
-    python -c "import keyring; keyring.delete_password('note-auto-poster', 'note_email')"
+保存先を確認したい場合は「キーチェーンアクセス.app」で
+サービス名 "note-auto-poster" を検索する。
 """
 
 import getpass
@@ -22,42 +21,50 @@ import sys
 try:
     import keyring
 except ImportError:
-    print("エラー: keyring が必要です。 pip install keyring")
+    print("エラー: keyring がインストールされていません。")
+    print("  pip install keyring を実行してください。")
     sys.exit(1)
 
 SERVICE_NAME = "note-auto-poster"
-EMAIL_KEY = "note_email"
+EMAIL_KEY = "note_email"          # メールアドレスを保存するキー
+PASSWORD_PREFIX = "note_password" # 実パスワードは email をアカウント名として保存
 
 
 def main():
-    print("note の認証情報を Keychain / keyring に保存します。")
-    print("入力内容はターミナルには表示されません。")
-    print()
+    print("=" * 50)
+    print(" note 自動投稿ツール 認証情報セットアップ")
+    print("=" * 50)
+    print("入力した情報は macOS Keychain に暗号化して保存されます。")
+    print("（ソースコードや平文ファイルには一切残りません）\n")
 
-    email = input("note のメールアドレス: ").strip()
+    email = input("note のログイン用メールアドレス: ").strip()
     if not email:
-        print("エラー: メールアドレスが空です。")
+        print("メールアドレスが空です。中止します。")
         sys.exit(1)
 
-    password = getpass.getpass("note のパスワード: ")
+    # パスワードは画面に表示されない形で入力
+    password = getpass.getpass("note のログインパスワード: ")
     if not password:
-        print("エラー: パスワードが空です。")
+        print("パスワードが空です。中止します。")
         sys.exit(1)
 
-    password_confirm = getpass.getpass("パスワード（確認）: ")
+    password_confirm = getpass.getpass("確認のためもう一度パスワード: ")
     if password != password_confirm:
-        print("エラー: パスワードが一致しません。")
+        print("パスワードが一致しません。中止します。")
         sys.exit(1)
 
+    # Keychain に保存
+    # メールアドレス自体も Keychain に保存しておき、実行時に参照する
     keyring.set_password(SERVICE_NAME, EMAIL_KEY, email)
+    # パスワードは「メールアドレスをアカウント名」として保存
     keyring.set_password(SERVICE_NAME, email, password)
 
-    print()
-    print(f"保存しました（サービス名: {SERVICE_NAME}）。")
-    print("note_poster.py を実行できます。")
-    print()
-    print("削除する場合:")
-    print(f'  python -c "import keyring; keyring.delete_password(\'{SERVICE_NAME}\', \'{EMAIL_KEY}\')"')
+    print("\n保存が完了しました。")
+    print(f"  サービス名 : {SERVICE_NAME}")
+    print(f"  メール     : {email}")
+    print("  パスワード : （Keychain に暗号化保存済み）")
+    print("\nこれで note_poster.py が利用できます。")
+    print("認証情報を削除したい場合は delete_credentials.py を実行してください。")
 
 
 if __name__ == "__main__":
