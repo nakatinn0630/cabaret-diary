@@ -6,7 +6,7 @@ export default function CastHome() {
 
   return (
     <div className="mx-auto flex h-full max-w-md flex-col bg-white text-night dark:bg-night dark:text-white">
-      <header className="flex items-center justify-between border-b border-black/10 px-4 py-3 dark:border-white/10">
+      <header className="safe-top sticky top-0 z-10 flex items-center justify-between border-b border-black/10 bg-white/90 px-4 pb-3 backdrop-blur dark:border-white/10 dark:bg-night/90">
         <span className="font-bold text-gold">キャバ帳</span>
         <button onClick={() => void signOut()} className="text-sm text-black/50 dark:text-white/50">
           ログアウト

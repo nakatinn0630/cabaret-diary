@@ -7,7 +7,7 @@ export default function ConsoleHome() {
 
   return (
     <div className="min-h-full bg-neutral-100 text-night dark:bg-neutral-900 dark:text-white">
-      <header className="flex items-center justify-between border-b border-black/10 bg-white px-6 py-4 dark:border-white/10 dark:bg-neutral-800">
+      <header className="safe-top safe-x sticky top-0 z-10 flex items-center justify-between border-b border-black/10 bg-white px-6 pb-4 dark:border-white/10 dark:bg-neutral-800">
         <span className="font-bold">キャバ帳 店舗コンソール</span>
         <div className="flex items-center gap-4 text-sm">
           <span className="text-black/50 dark:text-white/50">{user?.email}</span>
