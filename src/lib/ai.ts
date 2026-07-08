@@ -1,10 +1,25 @@
 import type { ReplySuggestion, ReplyTone } from '../types'
+import { auth } from './firebase'
 
 // F-06 返信案生成 / F-07 特別連絡の文面生成。
 // 本番: ai-proxy Cloud Function 経由で Claude API（SEC-10 マスキング / SEC-11 レート制限 / SEC-12 本文非保存）。
 // 未設定時: ローカルの簡易テンプレ生成にフォールバック（デモ・オフライン用）。
 
 const PROXY_URL = import.meta.env.VITE_AI_PROXY_URL
+
+// ai-proxy は Firebase IDトークンで認証（SEC-01/11）。
+async function proxyHeaders(): Promise<Record<string, string>> {
+  const base: Record<string, string> = { 'Content-Type': 'application/json' }
+  const u = auth?.currentUser
+  if (u) {
+    try {
+      base.Authorization = `Bearer ${await u.getIdToken()}`
+    } catch {
+      /* トークン取得失敗時は未認証で送る（サーバが401を返す） */
+    }
+  }
+  return base
+}
 
 export interface ReplyContext {
   latestMessage: string
@@ -28,7 +43,7 @@ export async function generateReplies(ctx: ReplyContext): Promise<ReplyResult> {
   if (PROXY_URL) {
     const res = await fetch(`${PROXY_URL}/replies`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await proxyHeaders(),
       body: JSON.stringify({
         latestMessage: maskPII(ctx.latestMessage),
         customerName: ctx.customerName,
@@ -90,7 +105,7 @@ export async function generateSpecialContact(ctx: SpecialContactContext): Promis
   if (PROXY_URL) {
     const res = await fetch(`${PROXY_URL}/special-contact`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await proxyHeaders(),
       body: JSON.stringify(ctx),
     })
     if (!res.ok) throw new Error(`AI生成に失敗しました (${res.status})`)
@@ -138,7 +153,7 @@ export async function consultKurofuku(history: ConsultTurn[], latest: string): P
   if (PROXY_URL) {
     const res = await fetch(`${PROXY_URL}/consult`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await proxyHeaders(),
       body: JSON.stringify({ history, latest: maskPII(latest) }),
     })
     if (!res.ok) throw new Error(`相談AIに接続できませんでした (${res.status})`)
@@ -199,7 +214,7 @@ export async function diagnoseCompatibility(input: CompatInput): Promise<CompatR
   if (PROXY_URL) {
     const res = await fetch(`${PROXY_URL}/compatibility`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await proxyHeaders(),
       body: JSON.stringify(input),
     })
     if (!res.ok) throw new Error(`占い生成に失敗しました (${res.status})`)
