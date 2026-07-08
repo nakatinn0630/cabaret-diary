@@ -8,31 +8,55 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }
 
-    // 店舗連携（F-15〜F-18）: メンバーシップに基づくアクセス制御。
-    // 店舗コンソールからキャスト個人領域(users/**)へは到達できない（別ツリーのため物理分離）。
+    // 店舗連携（F-15〜F-18）。店舗コンソールからキャスト個人領域(users/**)へは到達できない。
     match /stores/{storeId} {
-      function isMember() {
-        return request.auth != null &&
-          exists(/databases/$(database)/documents/stores/$(storeId)/memberships/$(request.auth.uid));
+      function signedIn() { return request.auth != null; }
+      function memberPath(uid) {
+        return /databases/$(database)/documents/stores/$(storeId)/memberships/$(uid);
       }
-      function role() {
-        return get(/databases/$(database)/documents/stores/$(storeId)/memberships/$(request.auth.uid)).data.role;
-      }
-      function isManager() {
-        return isMember() && role() == 'manager';
-      }
+      function isMember() { return signedIn() && exists(memberPath(request.auth.uid)); }
+      function myRole() { return get(memberPath(request.auth.uid)).data.role; }
+      function isManager() { return isMember() && myRole() == 'manager'; }
+      function isStaff() { return isMember() && (myRole() == 'manager' || myRole() == 'kurofuku'); }
 
-      // 店舗情報の閲覧は所属メンバー、変更は店長（詳細権限は実装時に細分化）。
+      // 店舗ドキュメント: 作成者=本人、更新は店長、閲覧はメンバー
       allow read: if isMember();
-      allow write: if isManager();
+      allow create: if signedIn() && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if isManager();
 
+      // メンバーシップ: 閲覧はメンバー。自分の分は本人が作成/更新（招待コードで参加）。他人の変更は店長。
       match /memberships/{memberUid} {
         allow read: if isMember();
+        allow create, update: if request.auth.uid == memberUid || isManager();
+        allow delete: if isManager();
+      }
+
+      // 招待コード: 発行は店長、参加検証のため署名済みユーザーは読取可
+      match /invites/{code} {
+        allow read: if signedIn();
         allow write: if isManager();
       }
 
-      // 発信・売上・ランキング等のサブコレクション（暫定: 所属で読み取り、店長で書き込み）。
-      match /{sub=**} {
+      // 発信: 閲覧はメンバー、投稿は店長/黒服
+      match /broadcasts/{bid} {
+        allow read: if isMember();
+        allow create, update, delete: if isStaff();
+
+        // 既読: 本人が自分の既読を書き込み
+        match /reads/{uid} {
+          allow read: if isMember();
+          allow write: if request.auth.uid == uid;
+        }
+      }
+
+      // 売上: 店長が確定。キャストは自分の自己申告のみ書込可。閲覧はメンバー。
+      match /sales/{month}/casts/{castUid} {
+        allow read: if isMember();
+        allow write: if isManager() || request.auth.uid == castUid;
+      }
+
+      // ランキング: 閲覧はメンバー、公開/更新は店長
+      match /rankings/{rankId} {
         allow read: if isMember();
         allow write: if isManager();
       }

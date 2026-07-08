@@ -74,6 +74,22 @@ export default function CastHome() {
             <div className="mt-1 text-sm font-semibold">黒服に相談</div>
             <div className="text-[11px] text-black/50 dark:text-white/50">24時間・誰にも言えない悩み</div>
           </Link>
+          <Link
+            to="/notices"
+            className="rounded-2xl border border-black/10 p-4 dark:border-white/10"
+          >
+            <div className="text-lg">📢</div>
+            <div className="mt-1 text-sm font-semibold">お知らせ</div>
+            <div className="text-[11px] text-black/50 dark:text-white/50">店舗からの発信・イベント</div>
+          </Link>
+          <Link
+            to="/console"
+            className="rounded-2xl border border-black/10 p-4 dark:border-white/10"
+          >
+            <div className="text-lg">🏬</div>
+            <div className="mt-1 text-sm font-semibold">店舗コンソール</div>
+            <div className="text-[11px] text-black/50 dark:text-white/50">黒服・店長向け（別画面）</div>
+          </Link>
         </div>
 
         {/* F-07 特別な連絡レコメンド */}

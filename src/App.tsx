@@ -12,7 +12,9 @@ import ReplyAssist from './pages/cast/ReplyAssist'
 import Consult from './pages/cast/Consult'
 import SalesReport from './pages/cast/SalesReport'
 import Compatibility from './pages/cast/Compatibility'
+import Notices from './pages/cast/Notices'
 import ConsoleHome from './pages/console/ConsoleHome'
+import StoreConsole from './pages/console/StoreConsole'
 import type { ReactNode } from 'react'
 
 function RequireAuth({ children }: { children: ReactNode }) {
@@ -51,6 +53,7 @@ export default function App() {
         <Route path="/consult" element={<Consult />} />
         <Route path="/sales" element={<SalesReport />} />
         <Route path="/compat" element={<Compatibility />} />
+        <Route path="/notices" element={<Notices />} />
       </Route>
 
       {/* 店舗コンソール（D-1: 別サーフェス。将来は別デプロイに分離予定） */}
@@ -59,6 +62,14 @@ export default function App() {
         element={
           <RequireAuth>
             <ConsoleHome />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/console/:storeId"
+        element={
+          <RequireAuth>
+            <StoreConsole />
           </RequireAuth>
         }
       />
