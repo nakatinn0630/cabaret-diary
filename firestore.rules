@@ -1,9 +1,41 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // テストモード - 全てのアクセスを許可
-    match /{document=**} {
-      allow read, write: if true;
+
+    // SEC-02: 認証必須。キャストの個人領域は本人(uid)以外アクセス不可。
+    // キャスト個人領域: users/{uid} 配下すべて（顧客・来店・占い・相談・売上など）
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // 店舗連携（F-15〜F-18）: メンバーシップに基づくアクセス制御。
+    // 店舗コンソールからキャスト個人領域(users/**)へは到達できない（別ツリーのため物理分離）。
+    match /stores/{storeId} {
+      function isMember() {
+        return request.auth != null &&
+          exists(/databases/$(database)/documents/stores/$(storeId)/memberships/$(request.auth.uid));
+      }
+      function role() {
+        return get(/databases/$(database)/documents/stores/$(storeId)/memberships/$(request.auth.uid)).data.role;
+      }
+      function isManager() {
+        return isMember() && role() == 'manager';
+      }
+
+      // 店舗情報の閲覧は所属メンバー、変更は店長（詳細権限は実装時に細分化）。
+      allow read: if isMember();
+      allow write: if isManager();
+
+      match /memberships/{memberUid} {
+        allow read: if isMember();
+        allow write: if isManager();
+      }
+
+      // 発信・売上・ランキング等のサブコレクション（暫定: 所属で読み取り、店長で書き込み）。
+      match /{sub=**} {
+        allow read: if isMember();
+        allow write: if isManager();
+      }
     }
   }
 }

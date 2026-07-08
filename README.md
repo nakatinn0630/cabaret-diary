@@ -1,43 +1,61 @@
-# Points Optimizer App
+# キャバ帳（cabaage-app）
 
-Firebase Auth/Firestoreを使用したiOSアプリです。
+キャバクラで働くキャスト向けの、顧客管理・スケジュール・LINE営業・メンタルケア・売上管理を1つで完結するパーソナルアプリ。加えて、店舗（担当黒服・店長）向けの店舗コンソールを備える。
 
-## 機能
-- メール認証（登録/ログイン/ログアウト）
-- Firestoreユーザープロファイル管理
-- 認証状態に応じた画面遷移
+- 業務要件定義: [`docs/キャバ帳_業務要件定義_v1.1.md`](docs/キャバ帳_業務要件定義_v1.1.md)
+- 占い鑑定ペルソナ（参考）: [`docs/prompts/占い鑑定ペルソナ_参考.md`](docs/prompts/占い鑑定ペルソナ_参考.md)
 
-## 技術スタック
-- SwiftUI + Swift
-- iOS 17+
-- Firebase Auth
-- Firebase Firestore
+## 技術スタック（決定: D-3）
+
+- フロント: **React 18 + Vite + PWA**（Tailwind CSS）
+- バックエンド: Firebase（Auth / Firestore / 将来 Cloud Functions）
+- 認証: Firebase Authentication（Google OAuth / SEC-01）
+- Firebaseプロジェクト: `points-optimizer-app`（asia-northeast1）
+
+## サーフェス構成（D-1）
+
+- **キャストアプリ**（`/`）: キャスト個人が使う。顧客・占い・売上などの個人領域。
+- **店舗コンソール**（`/console`）: 担当黒服・店長向けの管理画面。キャスト個人領域には一切アクセスしない。
+  - ※現状は同一Viteアプリ内のルート分離。将来的に別デプロイへ分離予定。
 
 ## セットアップ
 
-1. Firebase プロジェクトの設定
-   - プロジェクトID: points-optimizer-app
-   - リージョン: asia-northeast1
-   - Firestoreルール: テストモード
-
-2. GoogleService-Info.plist の設定
-   - Firebase Console からダウンロードしたファイルで置き換えてください
-
-3. 依存関係のインストール
-   ```bash
-   swift package resolve
-   ```
-
-## ファイル構成
+```bash
+npm install
+cp .env.example .env   # Firebaseの値を記入（.env はコミットしない）
+npm run dev            # http://localhost:5173
 ```
-/App
-  ├── MainApp.swift           # エントリーポイント
-  ├── AuthManager.swift       # 認証管理
-  ├── UserProfile.swift       # ユーザーモデル
-  ├── Views
-  │   ├── LoginView.swift
-  │   ├── ProfileView.swift
-  │   └── DashboardView.swift
-  └── Utilities
-      └── FirebaseConfig.swift # Firebase初期化
+
+## スクリプト
+
+| コマンド | 内容 |
+|---|---|
+| `npm run dev` | 開発サーバ |
+| `npm run build` | 型チェック + 本番ビルド |
+| `npm run preview` | ビルド成果物のプレビュー |
+| `npm run typecheck` | 型チェックのみ |
+
+## ディレクトリ
+
 ```
+src/
+  lib/firebase.ts          Firebase初期化（環境変数から注入）
+  contexts/AuthContext.tsx Google OAuth 認証
+  pages/
+    LoginPage.tsx          ログイン
+    cast/CastHome.tsx      キャストアプリ ホーム（Phase 1で顧客DB等）
+    console/ConsoleHome.tsx 店舗コンソール ホーム（Phase 5で発信等）
+firestore.rules            SEC-02準拠のセキュリティルール
+docs/                      要件定義・設計ドキュメント
+```
+
+## 実装ロードマップ（要件定義書の開発フェーズ準拠）
+
+| Phase | 内容 |
+|---|---|
+| 0（現在） | スキャフォールド（React PWA + Firebase + 認証 + ルール整備） |
+| 1 | 顧客DB + 来店履歴 + リスクスコア（F-01/02/03） |
+| 2 | スケジュール + Googleカレンダー連携（F-04） |
+| 3 | LINEトーク取込 + AI返信案（F-05/06/07） |
+| 4 | 黒服機能 + 売上レポート（F-08/09） |
+| 5 | 店舗連携（F-15〜F-18）+ 店舗コンソール |
