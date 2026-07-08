@@ -4,6 +4,7 @@ import { useCustomers } from '../../lib/customers'
 import { useSchedules, SCHEDULE_LABEL } from '../../lib/schedules'
 import { RiskChip } from '../../components/RiskAlert'
 import { RankBadge } from '../../components/RankBadge'
+import { SpecialContacts } from '../../components/SpecialContacts'
 import { yen } from '../../lib/format'
 
 export default function CastHome() {
@@ -54,6 +55,9 @@ export default function CastHome() {
             </ul>
           </section>
         )}
+
+        {/* F-07 特別な連絡レコメンド */}
+        {!loading && <SpecialContacts customers={customers} schedules={schedules} />}
 
         {/* 太客TOP */}
         <section className="rounded-2xl border border-black/10 p-4 dark:border-white/10">

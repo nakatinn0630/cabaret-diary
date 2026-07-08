@@ -42,6 +42,9 @@ export default function CustomerDetail() {
           ← 顧客
         </Link>
         <div className="flex items-center gap-3 text-sm">
+          <Link to={`/reply?cid=${cid}`} className="font-semibold text-gold">
+            返信案
+          </Link>
           <Link to={`/customers/${cid}/edit`} className="font-semibold text-gold">
             編集
           </Link>

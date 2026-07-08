@@ -142,6 +142,7 @@ async function recomputeAggregates(uid: string, cid: string): Promise<void> {
   const cust = custSnap.data()
   const visits = visitsSnap.docs.map((d) => d.data())
   const totalSpent = visits.reduce((s, v) => s + (v.amount || 0), 0)
+  const lastVisitMs = visits.reduce((mx, v) => Math.max(mx, (v.date as Timestamp)?.toMillis?.() ?? 0), 0)
   const risk = computeRisk({
     occupation: cust.occupation,
     incomeRange: cust.incomeRange,
@@ -157,6 +158,7 @@ async function recomputeAggregates(uid: string, cid: string): Promise<void> {
   await updateDoc(customerRef(uid, cid), {
     totalSpent,
     visitCount: visits.length,
+    lastVisitAt: lastVisitMs > 0 ? Timestamp.fromMillis(lastVisitMs) : null,
     riskScore: risk.score,
     riskFlags: risk.flags,
     updatedAt: serverTimestamp(),

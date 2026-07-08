@@ -56,6 +56,8 @@ export interface Customer {
   // --- 非正規化集計（Cloud Functionが来店書込時に再計算）---
   totalSpent: Yen
   visitCount: number
+  lastVisitAt?: Timestamp // 最終来店日（F-07判定用・集計）
+  lastContactAt?: Timestamp // 最終連絡日（F-07判定用）
   riskScore: number // F-02（0-100）
   riskFlags: string[]
   memo?: string
