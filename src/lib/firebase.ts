@@ -22,3 +22,6 @@ export const db: Firestore = app ? getFirestore(app) : (null as unknown as Fires
 
 // SEC-01: 認証はGoogle OAuthを標準とする
 export const googleProvider = new GoogleAuthProvider()
+// F-04: Googleカレンダー連携用スコープ（専用カレンダー作成＋イベント読み書き）
+export const GOOGLE_CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar'
+googleProvider.addScope(GOOGLE_CALENDAR_SCOPE)

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useCustomers } from '../../lib/customers'
+import { useSchedules, SCHEDULE_LABEL } from '../../lib/schedules'
 import { RiskChip } from '../../components/RiskAlert'
 import { RankBadge } from '../../components/RankBadge'
 import { yen } from '../../lib/format'
@@ -8,9 +9,18 @@ import { yen } from '../../lib/format'
 export default function CastHome() {
   const { user, signOut } = useAuth()
   const { customers, loading } = useCustomers()
+  const { schedules } = useSchedules()
 
   const alerting = customers.filter((c) => c.riskScore >= 50).sort((a, b) => b.riskScore - a.riskScore)
   const topSpenders = [...customers].sort((a, b) => b.totalSpent - a.totalSpent).slice(0, 3)
+
+  const todayKey = new Date().toISOString().slice(0, 10)
+  const nameOf = (id?: string) => (id ? (customers.find((c) => c.id === id)?.nickname ?? '') : '')
+  const todaySchedules = schedules.filter((s) => s.start.toDate().toISOString().slice(0, 10) === todayKey)
+  const hhmm = (t: (typeof schedules)[number]['start']) => {
+    const d = t.toDate()
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  }
 
   return (
     <div className="flex min-h-full flex-col">
@@ -80,8 +90,27 @@ export default function CastHome() {
         </section>
 
         <section className="rounded-2xl border border-black/10 p-4 dark:border-white/10">
-          <h2 className="text-sm font-semibold">今日の予定</h2>
-          <p className="mt-1 text-xs text-black/50 dark:text-white/50">（Phase 2でスケジュール連携を実装予定）</p>
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="text-sm font-semibold">今日の予定</h2>
+            <Link to="/schedule" className="text-xs font-semibold text-gold">
+              予定へ →
+            </Link>
+          </div>
+          {todaySchedules.length === 0 ? (
+            <p className="text-xs text-black/50 dark:text-white/50">今日の予定はありません。</p>
+          ) : (
+            <ul className="space-y-1.5">
+              {todaySchedules.map((s) => (
+                <li key={s.id} className="flex items-center gap-2 text-sm">
+                  <span className="tabular-nums text-black/60 dark:text-white/60">{hhmm(s.start)}</span>
+                  <span className="rounded-full bg-gold/15 px-2 py-0.5 text-[11px] font-bold text-gold">
+                    {SCHEDULE_LABEL[s.type]}
+                  </span>
+                  {nameOf(s.customerId) && <span className="truncate">{nameOf(s.customerId)}</span>}
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       </main>
     </div>

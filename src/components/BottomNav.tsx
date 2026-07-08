@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom'
 const items = [
   { to: '/', label: 'ホーム', icon: '🏠', end: true },
   { to: '/customers', label: '顧客', icon: '👥', end: false },
+  { to: '/schedule', label: '予定', icon: '📅', end: false },
 ]
 
 // F-01 導線用のボトムナビ（Phase 2以降で予定/カレンダー等を追加）
