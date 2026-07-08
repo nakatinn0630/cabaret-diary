@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app'
-import { getAuth, GoogleAuthProvider } from 'firebase/auth'
-import { getFirestore } from 'firebase/firestore'
+import { getAuth, GoogleAuthProvider, type Auth } from 'firebase/auth'
+import { getFirestore, type Firestore } from 'firebase/firestore'
 
 // Firebase設定は環境変数から注入する（.env参照。値はコミットしない）。
 // Firebaseプロジェクト: points-optimizer-app / asia-northeast1
@@ -13,9 +13,12 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 }
 
-export const app = initializeApp(firebaseConfig)
-export const auth = getAuth(app)
-export const db = getFirestore(app)
+// .env 未設定でもアプリが起動できるようにガードする（未設定時はログイン画面で案内）。
+export const isFirebaseConfigured = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId)
+
+const app = isFirebaseConfigured ? initializeApp(firebaseConfig) : undefined
+export const auth: Auth = app ? getAuth(app) : (null as unknown as Auth)
+export const db: Firestore = app ? getFirestore(app) : (null as unknown as Firestore)
 
 // SEC-01: 認証はGoogle OAuthを標準とする
 export const googleProvider = new GoogleAuthProvider()
