@@ -56,6 +56,26 @@ export default function CastHome() {
           </section>
         )}
 
+        {/* クイックアクセス */}
+        <div className="grid grid-cols-2 gap-2">
+          <Link
+            to="/sales"
+            className="rounded-2xl border border-black/10 p-4 dark:border-white/10"
+          >
+            <div className="text-lg">📊</div>
+            <div className="mt-1 text-sm font-semibold">売上レポート</div>
+            <div className="text-[11px] text-black/50 dark:text-white/50">保証カウントダウン・太客TOP5</div>
+          </Link>
+          <Link
+            to="/consult"
+            className="rounded-2xl border border-black/10 p-4 dark:border-white/10"
+          >
+            <div className="text-lg">🤵</div>
+            <div className="mt-1 text-sm font-semibold">黒服に相談</div>
+            <div className="text-[11px] text-black/50 dark:text-white/50">24時間・誰にも言えない悩み</div>
+          </Link>
+        </div>
+
         {/* F-07 特別な連絡レコメンド */}
         {!loading && <SpecialContacts customers={customers} schedules={schedules} />}
 

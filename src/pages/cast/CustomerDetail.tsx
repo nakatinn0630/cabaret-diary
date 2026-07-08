@@ -42,6 +42,9 @@ export default function CustomerDetail() {
           ← 顧客
         </Link>
         <div className="flex items-center gap-3 text-sm">
+          <Link to={`/compat?cid=${cid}`} className="font-semibold text-gold">
+            占い
+          </Link>
           <Link to={`/reply?cid=${cid}`} className="font-semibold text-gold">
             返信案
           </Link>
@@ -81,6 +84,27 @@ export default function CustomerDetail() {
             <div className="mt-3 flex flex-wrap gap-1.5">
               {customer.tags.map((t) => (
                 <span key={t} className="rounded-full bg-black/5 px-2 py-0.5 text-[11px] dark:bg-white/10">
+                  {t}
+                </span>
+              ))}
+            </div>
+          )}
+          {customer.fit && (
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+              <span
+                className={`rounded-full px-2 py-0.5 font-bold ${
+                  customer.fit.level === '得意'
+                    ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300'
+                    : customer.fit.level === '苦手'
+                      ? 'bg-red-500/15 text-red-600 dark:text-red-300'
+                      : 'bg-black/5 text-black/60 dark:bg-white/10 dark:text-white/60'
+                }`}
+              >
+                相性: {customer.fit.level}
+              </span>
+              <span className="text-black/50 dark:text-white/50">消耗度 {customer.fit.fatigue}</span>
+              {customer.fit.reasonTags.map((t) => (
+                <span key={t} className="rounded-full bg-black/5 px-2 py-0.5 dark:bg-white/10">
                   {t}
                 </span>
               ))}

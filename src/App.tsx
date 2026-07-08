@@ -9,6 +9,9 @@ import CustomerEdit from './pages/cast/CustomerEdit'
 import Schedule from './pages/cast/Schedule'
 import ScheduleEdit from './pages/cast/ScheduleEdit'
 import ReplyAssist from './pages/cast/ReplyAssist'
+import Consult from './pages/cast/Consult'
+import SalesReport from './pages/cast/SalesReport'
+import Compatibility from './pages/cast/Compatibility'
 import ConsoleHome from './pages/console/ConsoleHome'
 import type { ReactNode } from 'react'
 
@@ -45,6 +48,9 @@ export default function App() {
         <Route path="/schedule/new" element={<ScheduleEdit />} />
         <Route path="/schedule/:sid/edit" element={<ScheduleEdit />} />
         <Route path="/reply" element={<ReplyAssist />} />
+        <Route path="/consult" element={<Consult />} />
+        <Route path="/sales" element={<SalesReport />} />
+        <Route path="/compat" element={<Compatibility />} />
       </Route>
 
       {/* 店舗コンソール（D-1: 別サーフェス。将来は別デプロイに分離予定） */}

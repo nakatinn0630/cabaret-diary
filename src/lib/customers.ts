@@ -18,7 +18,7 @@ import {
 } from 'firebase/firestore'
 import { auth, db } from './firebase'
 import { computeRisk } from './risk'
-import type { Customer, Visit, CustomerRank, PaymentMethod, Bottle } from '../types'
+import type { Customer, Visit, CustomerRank, PaymentMethod, Bottle, Fit } from '../types'
 
 function requireUid(): string {
   const u = auth.currentUser
@@ -50,6 +50,7 @@ export interface NewCustomer {
   paymentMethods?: PaymentMethod[]
   tags?: string[]
   rank?: CustomerRank
+  fit?: Fit
   memo?: string
 }
 
@@ -179,6 +180,7 @@ export async function createCustomer(input: NewCustomer): Promise<string> {
     tags: input.tags ?? [],
     rank: input.rank ?? null,
     rankHistory: input.rank ? [{ rank: input.rank, changedAt: Timestamp.now() }] : [],
+    fit: input.fit ?? null,
     pinnedCautions: [],
     memo: input.memo ?? '',
     totalSpent: 0,

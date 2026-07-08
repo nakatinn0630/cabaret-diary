@@ -7,7 +7,10 @@ import {
   type NewCustomer,
 } from '../../lib/customers'
 import { RANK_LABEL, RANK_OPTIONS } from '../../components/RankBadge'
-import type { CustomerRank, PaymentMethod } from '../../types'
+import type { CustomerRank, Fatigue, FitLevel, PaymentMethod } from '../../types'
+
+const FIT_LEVELS: FitLevel[] = ['得意', '普通', '苦手']
+const FATIGUE_LEVELS: Fatigue[] = ['低', '中', '高']
 
 const inputCls =
   'w-full rounded-lg border border-black/10 bg-black/5 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-gold/50 dark:border-white/10 dark:bg-white/5'
@@ -27,6 +30,9 @@ export default function CustomerEdit() {
   const [form, setForm] = useState<NewCustomer>({ nickname: '', paymentMethods: [], tags: [] })
   const [initialRank, setInitialRank] = useState<CustomerRank | undefined>(undefined)
   const [tagsText, setTagsText] = useState('')
+  const [fitLevel, setFitLevel] = useState<FitLevel | ''>('')
+  const [fitFatigue, setFitFatigue] = useState<Fatigue>('中')
+  const [fitReasonsText, setFitReasonsText] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -46,6 +52,11 @@ export default function CustomerEdit() {
       })
       setInitialRank(customer.rank)
       setTagsText(customer.tags.join(', '))
+      if (customer.fit) {
+        setFitLevel(customer.fit.level)
+        setFitFatigue(customer.fit.fatigue)
+        setFitReasonsText(customer.fit.reasonTags.join(', '))
+      }
     }
   }, [editing, customer])
 
@@ -65,13 +76,20 @@ export default function CustomerEdit() {
       return
     }
     const tags = tagsText.split(',').map((t) => t.trim()).filter(Boolean)
+    const fit = fitLevel
+      ? {
+          level: fitLevel,
+          fatigue: fitFatigue,
+          reasonTags: fitReasonsText.split(',').map((t) => t.trim()).filter(Boolean),
+        }
+      : undefined
     setSaving(true)
     try {
       if (editing && cid) {
-        await updateCustomer(cid, { ...form, tags }, form.rank !== initialRank)
+        await updateCustomer(cid, { ...form, tags, fit }, form.rank !== initialRank)
         navigate(`/customers/${cid}`)
       } else {
-        const id = await createCustomer({ ...form, tags })
+        const id = await createCustomer({ ...form, tags, fit })
         navigate(`/customers/${id}`)
       }
     } catch (e) {
@@ -155,6 +173,42 @@ export default function CustomerEdit() {
             className={inputCls}
           />
         </Field>
+
+        <div className="rounded-xl border border-black/10 p-3 dark:border-white/10">
+          <span className="text-xs font-semibold text-black/60 dark:text-white/60">向き不向き（F-13）</span>
+          <div className="mt-2 grid grid-cols-2 gap-3">
+            <label className="block">
+              <span className="mb-1 block text-[11px] text-black/50 dark:text-white/50">相性</span>
+              <select value={fitLevel} onChange={(e) => setFitLevel(e.target.value as FitLevel | '')} className={inputCls}>
+                <option value="">未設定</option>
+                {FIT_LEVELS.map((f) => (
+                  <option key={f} value={f}>
+                    {f}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-[11px] text-black/50 dark:text-white/50">接客後の消耗度</span>
+              <select value={fitFatigue} onChange={(e) => setFitFatigue(e.target.value as Fatigue)} className={inputCls}>
+                {FATIGUE_LEVELS.map((f) => (
+                  <option key={f} value={f}>
+                    {f}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <label className="mt-2 block">
+            <span className="mb-1 block text-[11px] text-black/50 dark:text-white/50">理由タグ（カンマ区切り）</span>
+            <input
+              value={fitReasonsText}
+              onChange={(e) => setFitReasonsText(e.target.value)}
+              placeholder="会話が弾む, 聞き役が向く, 束縛が強い"
+              className={inputCls}
+            />
+          </label>
+        </div>
 
         <Field label="メモ">
           <textarea value={form.memo ?? ''} onChange={(e) => set('memo', e.target.value)} rows={3} className={inputCls} />
