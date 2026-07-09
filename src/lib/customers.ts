@@ -51,6 +51,7 @@ export interface NewCustomer {
   tags?: string[]
   rank?: CustomerRank
   fit?: Fit
+  pinnedCautions?: string[]
   memo?: string
 }
 
@@ -181,7 +182,7 @@ export async function createCustomer(input: NewCustomer): Promise<string> {
     rank: input.rank ?? null,
     rankHistory: input.rank ? [{ rank: input.rank, changedAt: Timestamp.now() }] : [],
     fit: input.fit ?? null,
-    pinnedCautions: [],
+    pinnedCautions: input.pinnedCautions ?? [],
     memo: input.memo ?? '',
     totalSpent: 0,
     visitCount: 0,

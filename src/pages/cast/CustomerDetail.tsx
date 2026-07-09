@@ -1,166 +1,224 @@
 import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { deleteCustomer, useCustomer, useVisits } from '../../lib/customers'
 import { RankBadge } from '../../components/RankBadge'
 import { RiskAlert } from '../../components/RiskAlert'
 import { VisitTimeline } from '../../components/VisitTimeline'
 import { VisitForm } from '../../components/VisitForm'
+import {
+  Header,
+  Main,
+  Card,
+  SectionTitle,
+  Chip,
+  Avatar,
+  Empty,
+  subTx,
+  goldTx,
+  useToast,
+} from '../../components/ui'
 import { yen } from '../../lib/format'
+import type { FitLevel, PaymentMethod } from '../../types'
+
+const PAY_LABEL: Record<PaymentMethod, string> = { cash: '現金', card: 'カード', urikake: '売掛' }
+const FIT_CLS: Record<FitLevel, string> = {
+  得意: 'text-emerald-600 dark:text-emerald-300 bg-emerald-500/10 border-emerald-500/40',
+  普通: `${goldTx} bg-gold/10 border-gold/40`,
+  苦手: 'text-rose bg-rose/10 border-rose/40',
+}
 
 export default function CustomerDetail() {
   const { cid } = useParams<{ cid: string }>()
   const navigate = useNavigate()
+  const toast = useToast()
   const { customer, loading } = useCustomer(cid)
   const { visits } = useVisits(cid)
   const [showVisitForm, setShowVisitForm] = useState(false)
+  const [confirmDel, setConfirmDel] = useState(false)
 
   if (loading) {
-    return <p className="p-10 text-center text-sm text-black/50 dark:text-white/50">読み込み中…</p>
+    return (
+      <div className="h-full flex flex-col">
+        <Header title="顧客詳細" back onBack={() => navigate(-1)} />
+        <Empty>読み込み中…</Empty>
+      </div>
+    )
   }
   if (!customer) {
     return (
-      <div className="p-10 text-center text-sm text-black/50 dark:text-white/50">
-        <p>顧客が見つかりません。</p>
-        <Link to="/customers" className="mt-3 inline-block font-semibold text-gold">
-          顧客一覧へ
-        </Link>
+      <div className="h-full flex flex-col">
+        <Header title="顧客詳細" back onBack={() => navigate('/customers')} />
+        <Empty>顧客が見つかりません。</Empty>
       </div>
     )
   }
 
+  const c = customer
   const onDelete = async () => {
     if (!cid) return
-    if (!confirm(`「${customer.nickname}」を削除しますか？この操作は取り消せません。`)) return
+    if (!confirmDel) {
+      setConfirmDel(true)
+      return
+    }
     await deleteCustomer(cid)
+    toast('削除しました')
     navigate('/customers')
   }
 
   return (
-    <div className="flex min-h-full flex-col">
-      <header className="safe-top sticky top-0 z-10 flex items-center justify-between border-b border-black/10 bg-white/90 px-4 pb-3 backdrop-blur dark:border-white/10 dark:bg-night/90">
-        <Link to="/customers" className="text-sm text-black/60 dark:text-white/60">
-          ← 顧客
-        </Link>
-        <div className="flex items-center gap-3 text-sm">
-          <Link to={`/compat?cid=${cid}`} className="font-semibold text-gold">
-            占い
-          </Link>
-          <Link to={`/reply?cid=${cid}`} className="font-semibold text-gold">
-            返信案
-          </Link>
-          <Link to={`/customers/${cid}/edit`} className="font-semibold text-gold">
+    <div className="h-full flex flex-col">
+      <Header
+        title={c.nickname}
+        back
+        onBack={() => navigate(-1)}
+        right={
+          <button
+            type="button"
+            onClick={() => navigate(`/customers/${c.id}/edit`)}
+            className="text-[13px] font-bold text-gold px-2 py-2"
+          >
             編集
-          </Link>
-          <button onClick={() => void onDelete()} className="text-red-500">
-            削除
           </button>
-        </div>
-      </header>
-
-      <div className="flex-1 space-y-4 p-4">
-        {/* プロフィールカード */}
-        <section className="rounded-2xl border border-black/10 bg-white p-4 dark:border-white/10 dark:bg-white/5">
-          <div className="flex items-start gap-3">
-            <div className="grid h-14 w-14 flex-none place-items-center rounded-full bg-gold/15 text-xl font-bold text-gold">
-              {customer.nickname.slice(0, 1)}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-lg font-bold">{customer.nickname}</h1>
-                <RankBadge rank={customer.rank} />
-              </div>
-              <p className="mt-0.5 text-xs text-black/50 dark:text-white/50">
-                {[customer.occupation, customer.companyName].filter(Boolean).join(' / ') || '職業未登録'}
-                {customer.lineName ? ` · LINE: ${customer.lineName}` : ''}
+        }
+      />
+      <Main>
+        {/* プロフィール */}
+        <Card className="p-4 space-y-3">
+          <div className="flex items-center gap-3">
+            <Avatar name={c.nickname} size={52} />
+            <div className="min-w-0">
+              <p className="font-serif text-[19px] font-bold flex items-center gap-2">
+                {c.nickname} <RankBadge rank={c.rank} />
+              </p>
+              <p className={`text-[12px] ${subTx}`}>
+                LINE: {c.lineName || '—'} ·{' '}
+                {[c.occupation, c.companyName, c.incomeRange].filter(Boolean).join(' / ') || '未登録'}
               </p>
             </div>
           </div>
-          <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-            <Stat label="累計" value={yen(customer.totalSpent)} />
-            <Stat label="来店" value={`${customer.visitCount}回`} />
-            <Stat label="リスク" value={String(customer.riskScore)} />
+          {(c.tags.length > 0 || c.paymentMethods.length > 0) && (
+            <div className="flex flex-wrap gap-1.5">
+              {c.tags.map((t) => (
+                <Chip key={t} className="border-night/10 dark:border-white/15 bg-night/5 dark:bg-white/[0.07]">
+                  {t}
+                </Chip>
+              ))}
+              {c.paymentMethods.map((p) => (
+                <Chip key={p} className={`border-gold/40 bg-gold/10 ${goldTx}`}>
+                  {PAY_LABEL[p]}
+                </Chip>
+              ))}
+            </div>
+          )}
+          <div className="grid grid-cols-3 gap-2 text-center">
+            {[
+              ['累計売上', yen(c.totalSpent), true],
+              ['来店回数', `${c.visitCount}回`, false],
+              ['平均単価', c.visitCount ? yen(Math.round(c.totalSpent / c.visitCount)) : '—', false],
+            ].map(([label, value, gold]) => (
+              <div key={label as string} className="rounded-xl py-2.5 bg-night/[0.04] dark:bg-white/[0.05]">
+                <p className={`text-[10px] ${subTx}`}>{label}</p>
+                <p className={`font-serif text-[14px] font-bold ${gold ? goldTx : ''}`}>{value}</p>
+              </div>
+            ))}
           </div>
-          {customer.tags.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {customer.tags.map((t) => (
-                <span key={t} className="rounded-full bg-black/5 px-2 py-0.5 text-[11px] dark:bg-white/10">
-                  {t}
-                </span>
-              ))}
-            </div>
-          )}
-          {customer.fit && (
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-              <span
-                className={`rounded-full px-2 py-0.5 font-bold ${
-                  customer.fit.level === '得意'
-                    ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300'
-                    : customer.fit.level === '苦手'
-                      ? 'bg-red-500/15 text-red-600 dark:text-red-300'
-                      : 'bg-black/5 text-black/60 dark:bg-white/10 dark:text-white/60'
-                }`}
-              >
-                相性: {customer.fit.level}
-              </span>
-              <span className="text-black/50 dark:text-white/50">消耗度 {customer.fit.fatigue}</span>
-              {customer.fit.reasonTags.map((t) => (
-                <span key={t} className="rounded-full bg-black/5 px-2 py-0.5 dark:bg-white/10">
-                  {t}
-                </span>
-              ))}
-            </div>
-          )}
-        </section>
+        </Card>
 
-        <RiskAlert score={customer.riskScore} flags={customer.riskFlags} />
+        {/* F-02 リスクアラート */}
+        <RiskAlert score={c.riskScore} flags={c.riskFlags} />
 
-        {/* F-14 ピン留めした注意点 */}
-        {customer.pinnedCautions.length > 0 && (
-          <section className="rounded-2xl border border-black/10 p-4 dark:border-white/10">
-            <h2 className="text-sm font-semibold">気をつけること</h2>
-            <ul className="mt-2 space-y-1 text-sm">
-              {customer.pinnedCautions.map((c) => (
-                <li key={c} className="flex gap-2">
-                  <span className="text-gold">•</span>
-                  {c}
-                </li>
-              ))}
-            </ul>
-          </section>
+        {/* F-13 相性（向き不向き） */}
+        {c.fit && (
+          <Card className="p-4 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <SectionTitle>相性</SectionTitle>
+              <div className="flex gap-2">
+                <Chip className={FIT_CLS[c.fit.level]}>{c.fit.level}</Chip>
+                <Chip className="border-night/10 dark:border-white/15">消耗度 {c.fit.fatigue}</Chip>
+              </div>
+            </div>
+            {c.fit.reasonTags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {c.fit.reasonTags.map((t) => (
+                  <Chip key={t} className="border-rose/35 bg-rose/10 text-[#a8395c] dark:text-[#f0c3d2]">
+                    {t}
+                  </Chip>
+                ))}
+              </div>
+            )}
+          </Card>
         )}
 
-        {customer.memo && (
-          <section className="rounded-2xl border border-black/10 p-4 dark:border-white/10">
-            <h2 className="text-sm font-semibold">メモ</h2>
-            <p className="mt-1 whitespace-pre-wrap text-sm text-black/70 dark:text-white/70">{customer.memo}</p>
-          </section>
+        {/* F-14 気をつけること */}
+        {c.pinnedCautions.length > 0 && (
+          <Card className="p-4 space-y-2">
+            <SectionTitle>📌 気をつけること</SectionTitle>
+            {c.pinnedCautions.map((t) => (
+              <p key={t} className="text-[13px] font-medium rounded-xl px-3 py-2.5 border border-gold/30 bg-gold/[0.08]">
+                {t}
+              </p>
+            ))}
+          </Card>
         )}
 
-        {/* 来店履歴 */}
-        <section className="rounded-2xl border border-black/10 p-4 dark:border-white/10">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold">来店履歴</h2>
+        {/* F-03 来店タイムライン */}
+        <Card className="p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <SectionTitle>来店タイムライン</SectionTitle>
             <button
+              type="button"
               onClick={() => setShowVisitForm(true)}
-              className="rounded-full bg-gold px-3 py-1 text-xs font-bold text-night"
+              className="text-[12px] font-bold text-gold border border-gold/40 rounded-full px-3 py-1.5"
             >
-              ＋ 来店を登録
+              ＋ 来店登録
             </button>
           </div>
           <VisitTimeline visits={visits} />
-        </section>
-      </div>
+        </Card>
+
+        {c.memo && (
+          <Card className="p-4 space-y-1.5">
+            <SectionTitle>メモ</SectionTitle>
+            <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{c.memo}</p>
+          </Card>
+        )}
+
+        {/* アクション */}
+        <div className="grid grid-cols-3 gap-2.5">
+          <button
+            type="button"
+            onClick={() => setShowVisitForm(true)}
+            className="min-h-[48px] rounded-2xl bg-gold text-night text-[13px] font-bold shadow-lg shadow-gold/25"
+          >
+            ＋ 来店登録
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate(`/compat?cid=${c.id}`)}
+            className="min-h-[48px] rounded-2xl border border-night/15 dark:border-white/20 text-[13px] font-bold"
+          >
+            🔮 占い
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate(`/reply?cid=${c.id}`)}
+            className="min-h-[48px] rounded-2xl border border-night/15 dark:border-white/20 text-[13px] font-bold"
+          >
+            💬 返信案
+          </button>
+        </div>
+        <button
+          type="button"
+          onClick={() => void onDelete()}
+          className={`w-full min-h-[44px] rounded-2xl text-[13px] font-bold border ${
+            confirmDel ? 'bg-rose text-white border-rose' : 'text-rose border-rose/40'
+          }`}
+        >
+          {confirmDel ? '本当に削除する（取り消せません）' : '顧客を削除'}
+        </button>
+      </Main>
 
       {showVisitForm && cid && <VisitForm cid={cid} onClose={() => setShowVisitForm(false)} />}
-    </div>
-  )
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl bg-black/5 py-2 dark:bg-white/5">
-      <div className="text-sm font-bold tabular-nums">{value}</div>
-      <div className="text-[11px] text-black/50 dark:text-white/50">{label}</div>
     </div>
   )
 }

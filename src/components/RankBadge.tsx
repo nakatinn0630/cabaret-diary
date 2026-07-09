@@ -10,19 +10,22 @@ export const RANK_LABEL: Record<CustomerRank, string> = {
 
 export const RANK_OPTIONS: CustomerRank[] = ['VVIP', 'VIP', 'IP', 'LOVE', 'BADBOY']
 
-const RANK_CLASS: Record<CustomerRank, string> = {
-  VVIP: 'bg-gold/20 text-gold ring-1 ring-gold/40',
-  VIP: 'bg-gold/10 text-gold ring-1 ring-gold/20',
-  IP: 'bg-violet-500/15 text-violet-600 ring-1 ring-violet-500/30 dark:text-violet-300',
-  LOVE: 'bg-pink-500/15 text-pink-600 ring-1 ring-pink-500/30 dark:text-pink-300',
-  BADBOY: 'bg-red-500/15 text-red-600 ring-1 ring-red-500/30 dark:text-red-300',
+// ランクごとのグラデーション（クロードデザイン由来の高級感トーン）
+export const RANK_CLS: Record<CustomerRank, string> = {
+  VVIP: 'bg-gradient-to-br from-[#e8c97e] to-gold text-night',
+  VIP: 'bg-gradient-to-br from-[#e8e4ee] to-[#b9b3c9] text-night',
+  IP: 'bg-gradient-to-br from-[#b88a5e] to-[#8f6540] text-white',
+  LOVE: 'bg-gradient-to-br from-[#f0a9bf] to-[#e6789b] text-white',
+  BADBOY: 'bg-gradient-to-br from-[#6b6478] to-[#443e52] text-white',
 }
 
-export function RankBadge({ rank }: { rank?: CustomerRank }) {
+export function RankBadge({ rank, className = '' }: { rank?: CustomerRank; className?: string }) {
   if (!rank) return null
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${RANK_CLASS[rank]}`}>
-      {rank}・{RANK_LABEL[rank]}
+    <span
+      className={`inline-flex items-center text-[10px] font-bold tracking-widest px-2.5 py-0.5 rounded-full ${RANK_CLS[rank]} ${className}`}
+    >
+      {rank}
     </span>
   )
 }

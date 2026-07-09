@@ -1,13 +1,11 @@
 import { Outlet } from 'react-router-dom'
 import { BottomNav } from '../../components/BottomNav'
 
-// キャストアプリ共通レイアウト（モバイル幅＋ボトムナビ）
+// キャストアプリ共通シェル（モバイル幅・下地グラデーションは body 側／ボトムタブは重ね置き）
 export default function CastLayout() {
   return (
-    <div className="mx-auto flex min-h-full max-w-md flex-col bg-white text-night dark:bg-night dark:text-white">
-      <div className="flex-1">
-        <Outlet />
-      </div>
+    <div className="relative mx-auto h-full max-w-md overflow-hidden text-[#2a2140] dark:text-[#f3eee4]">
+      <Outlet />
       <BottomNav />
     </div>
   )

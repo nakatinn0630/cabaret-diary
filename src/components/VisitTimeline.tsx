@@ -1,53 +1,66 @@
-import type { Visit } from '../types'
+import type { Visit, PaymentMethod } from '../types'
 import { yen, fmtDate } from '../lib/format'
+import { Chip, Empty, subTx, goldTx } from './ui'
+
+const PAY_LABEL: Record<PaymentMethod, string> = { cash: '現金', card: 'カード', urikake: '売掛' }
 
 // F-03 来店履歴の時系列表示（思い出タイムライン）
 export function VisitTimeline({ visits }: { visits: Visit[] }) {
-  if (visits.length === 0) {
-    return <p className="text-sm text-black/50 dark:text-white/50">まだ来店履歴がありません。</p>
-  }
-  return (
-    <ol className="relative space-y-4 border-l border-black/10 pl-4 dark:border-white/15">
-      {visits.map((v) => (
-        <li key={v.id} className="relative">
-          <span className="absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full bg-gold ring-4 ring-white dark:ring-night" />
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-sm font-semibold">{fmtDate(v.date)}</span>
-            <span className="text-sm font-bold text-gold">{yen(v.amount)}</span>
-          </div>
-          <div className="mt-1 flex flex-wrap gap-1.5 text-[11px]">
-            {v.isDohan && <Tag>同伴</Tag>}
-            {v.isAfter && <Tag>アフター</Tag>}
-            {v.durationMin ? <Tag>{v.durationMin}分</Tag> : null}
-            <Tag>{paymentLabel(v.payment)}</Tag>
-            {v.payment === 'urikake' && v.urikakePaid !== true && <Tag danger>売掛未回収</Tag>}
-            {v.bottles.map((b, i) => (
-              <Tag key={i}>🍾 {b.name}</Tag>
-            ))}
-          </div>
-          {v.episodeMemo && (
-            <p className="mt-1 text-xs text-black/70 dark:text-white/70">{v.episodeMemo}</p>
-          )}
-        </li>
-      ))}
-    </ol>
-  )
-}
+  if (visits.length === 0) return <Empty>来店記録がありません</Empty>
 
-function Tag({ children, danger }: { children: React.ReactNode; danger?: boolean }) {
   return (
-    <span
-      className={`rounded-full px-2 py-0.5 ${
-        danger
-          ? 'bg-red-500/15 text-red-600 dark:text-red-300'
-          : 'bg-black/5 text-black/70 dark:bg-white/10 dark:text-white/70'
-      }`}
-    >
-      {children}
-    </span>
+    <>
+      {visits.map((v, i) => {
+        const unpaid = v.payment === 'urikake' && v.urikakePaid !== true
+        return (
+          <div key={v.id} className="grid grid-cols-[16px_1fr] gap-3">
+            <div className="flex flex-col items-center gap-1" aria-hidden="true">
+              <span className={`w-2.5 h-2.5 rounded-full mt-1 ${unpaid ? 'bg-rose' : 'bg-gold'}`}></span>
+              {i < visits.length - 1 && <span className="w-px flex-1 bg-night/10 dark:bg-white/10"></span>}
+            </div>
+            <div className="pb-3 space-y-1.5 min-w-0">
+              <div className="flex justify-between items-baseline gap-2">
+                <span className="text-[13px] font-semibold">
+                  {fmtDate(v.date)}
+                  {v.durationMin ? (
+                    <span className={`text-[11px] font-normal ml-1.5 ${subTx}`}>{v.durationMin}分</span>
+                  ) : null}
+                </span>
+                <span className={`font-serif text-[14px] font-bold ${goldTx}`}>{yen(v.amount)}</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {v.isDohan && (
+                  <Chip className={`border-gold/40 bg-gold/10 ${goldTx} !text-[10px] font-bold`}>同伴</Chip>
+                )}
+                {v.isAfter && (
+                  <Chip className="border-rose/40 bg-rose/10 text-[#a8395c] dark:text-[#f0c3d2] !text-[10px] font-bold">
+                    アフター
+                  </Chip>
+                )}
+                <Chip
+                  className={
+                    unpaid
+                      ? 'bg-rose text-white border-rose !text-[10px] font-bold'
+                      : `border-night/10 dark:border-white/15 ${subTx} !text-[10px] font-bold`
+                  }
+                >
+                  {unpaid ? '売掛未回収' : PAY_LABEL[v.payment]}
+                </Chip>
+              </div>
+              {v.bottles.map((b, bi) => (
+                <p
+                  key={`${b.name}-${bi}`}
+                  className="text-[12px] flex justify-between rounded-lg px-2.5 py-1.5 bg-night/[0.04] dark:bg-white/[0.05]"
+                >
+                  <span>🍾 {b.name}</span>
+                  <span className={goldTx}>{yen(b.price)}</span>
+                </p>
+              ))}
+              {v.episodeMemo && <p className={`text-[12px] leading-relaxed ${subTx}`}>{v.episodeMemo}</p>}
+            </div>
+          </div>
+        )
+      })}
+    </>
   )
-}
-
-function paymentLabel(p: Visit['payment']): string {
-  return p === 'cash' ? '現金' : p === 'card' ? 'カード' : '売掛'
 }

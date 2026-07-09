@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { subTx } from '../components/ui'
 
+// クロードデザインの LoginScreen を移植（ブランド表現＋実 Google 認証）
 export default function LoginPage() {
   const { user, loading, signInWithGoogle } = useAuth()
   const [error, setError] = useState<string | null>(null)
@@ -24,20 +26,32 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="safe-top flex h-full flex-col items-center justify-center gap-8 bg-night px-6 text-white">
-      <div className="text-center">
-        <h1 className="text-3xl font-bold tracking-wide text-gold">キャバ帳</h1>
-        <p className="mt-2 text-sm text-white/70">顧客・スケジュールをひとつで</p>
+    <div className="safe-top h-full flex flex-col items-center justify-center gap-10 px-8 text-center text-[#2a2140] dark:text-[#f3eee4]">
+      <div className="space-y-3">
+        <div className="text-[44px]" aria-hidden="true">
+          🥂
+        </div>
+        <h1 className="font-serif text-[34px] font-bold tracking-[0.2em] bg-gradient-to-r from-[#e8c97e] via-gold to-rose bg-clip-text text-transparent">
+          キャバ帳
+        </h1>
+        <p className={`text-[13px] leading-relaxed ${subTx}`}>
+          夜のお仕事を、もっとスマートに。
+          <br />
+          顧客・売上・予定をこの一冊で。
+        </p>
       </div>
+
       <button
+        type="button"
         onClick={() => void onSignIn()}
         disabled={busy}
-        className="rounded-full bg-white px-8 py-3 font-medium text-night shadow-lg transition hover:bg-white/90 disabled:opacity-60"
+        className="w-full max-w-[280px] min-h-[52px] rounded-2xl bg-gold text-night font-bold text-[16px] shadow-xl shadow-gold/30 transition active:scale-[0.98] disabled:opacity-60"
       >
         {busy ? 'ログイン中…' : 'Googleでログイン'}
       </button>
-      {error && <p className="max-w-xs text-center text-xs text-red-300">{error}</p>}
-      <p className="max-w-xs text-center text-xs text-white/50">
+
+      {error && <p className="max-w-xs text-[12px] text-rose">{error}</p>}
+      <p className={`max-w-xs text-[11px] leading-relaxed ${subTx}`}>
         18歳未満の方はご利用いただけません。ログインで利用規約・プライバシーポリシーに同意したものとみなします。
       </p>
     </div>

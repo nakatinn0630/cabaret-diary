@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import type { Customer, Schedule } from '../types'
 import { computeSpecialContacts } from '../lib/recommend'
 import { generateSpecialContact } from '../lib/ai'
+import { Card, subTx, goldTx, useToast } from './ui'
 
-// F-07 「営業じゃない特別な連絡」レコメンド
+// F-07 「営業じゃない特別な連絡」レコメンド（今日のひとこと連絡）
 export function SpecialContacts({
   customers,
   schedules,
@@ -12,15 +13,24 @@ export function SpecialContacts({
   customers: Customer[]
   schedules: Schedule[]
 }) {
+  const navigate = useNavigate()
+  const toast = useToast()
   const candidates = useMemo(
     () => computeSpecialContacts(customers, schedules).slice(0, 3),
     [customers, schedules],
   )
   const [texts, setTexts] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState<string | null>(null)
-  const [copied, setCopied] = useState<string | null>(null)
 
-  if (candidates.length === 0) return null
+  if (candidates.length === 0) {
+    return (
+      <Card className="p-4">
+        <p className={`text-[12px] leading-relaxed ${subTx}`}>
+          今日はおすすめの連絡先はありません。来店や記念日が近づくとここに提案が出ます。
+        </p>
+      </Card>
+    )
+  }
 
   const gen = async (cid: string, name: string, reason: string, hook?: string) => {
     setBusy(cid)
@@ -35,53 +45,59 @@ export function SpecialContacts({
   const copy = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text)
-      setCopied(text)
-      setTimeout(() => setCopied(null), 1500)
     } catch {
-      /* ignore */
+      /* clipboard 権限がなくても失敗させない */
     }
+    toast('コピーしました')
   }
 
   return (
-    <section className="rounded-2xl border border-gold/40 bg-gold/5 p-4">
-      <h2 className="text-sm font-semibold">今日のひとこと連絡</h2>
-      <p className="mt-0.5 text-[11px] text-black/50 dark:text-white/50">営業色のない自然な連絡の提案（F-07）</p>
-      <ul className="mt-3 space-y-3">
-        {candidates.map((c) => (
-          <li key={c.customer.id} className="border-t border-black/5 pt-3 first:border-0 first:pt-0 dark:border-white/10">
-            <div className="flex items-center justify-between gap-2">
-              <span className="flex items-center gap-2 text-sm">
-                <Link to={`/customers/${c.customer.id}`} className="font-medium">
-                  {c.customer.nickname}
-                </Link>
-                <span className="rounded-full bg-black/5 px-2 py-0.5 text-[11px] text-black/60 dark:bg-white/10 dark:text-white/60">
-                  {c.reason}
-                </span>
-              </span>
+    <Card className="p-4 space-y-3">
+      {candidates.map((c, i) => (
+        <div
+          key={c.customer.id}
+          className={i > 0 ? 'border-t border-night/5 pt-3 dark:border-white/10' : ''}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <span className="flex items-center gap-2 text-[13px]">
               <button
-                onClick={() => void gen(c.customer.id, c.customer.nickname, c.reason, c.hook)}
-                disabled={busy === c.customer.id}
-                className="text-xs font-semibold text-gold disabled:opacity-60"
+                type="button"
+                onClick={() => navigate(`/customers/${c.customer.id}`)}
+                className="font-semibold"
               >
-                {busy === c.customer.id ? '生成中…' : texts[c.customer.id] ? '再生成' : '文面を作る'}
+                {c.customer.nickname}
               </button>
-            </div>
-            {texts[c.customer.id] && (
-              <div className="mt-2 rounded-lg bg-white p-2 text-sm dark:bg-white/5">
-                <p className="whitespace-pre-wrap">{texts[c.customer.id]}</p>
-                <div className="mt-1 flex justify-end gap-3 text-xs">
-                  <button onClick={() => void copy(texts[c.customer.id])} className="font-semibold text-gold">
-                    {copied === texts[c.customer.id] ? 'コピーしました' : 'コピー'}
-                  </button>
-                  <Link to={`/reply?cid=${c.customer.id}`} className="text-black/50 dark:text-white/50">
-                    返信アシストで開く
-                  </Link>
-                </div>
+              <span
+                className={`rounded-full px-2 py-0.5 text-[11px] border border-gold/40 bg-gold/10 ${goldTx}`}
+              >
+                {c.reason}
+              </span>
+            </span>
+            <button
+              type="button"
+              onClick={() => void gen(c.customer.id, c.customer.nickname, c.reason, c.hook)}
+              disabled={busy === c.customer.id}
+              className="text-[12px] font-bold text-gold disabled:opacity-60"
+            >
+              {busy === c.customer.id ? '生成中…' : texts[c.customer.id] ? '再生成' : '文面を作る'}
+            </button>
+          </div>
+          {texts[c.customer.id] && (
+            <div className="mt-2 rounded-xl p-3 bg-night/[0.04] dark:bg-white/[0.05]">
+              <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{texts[c.customer.id]}</p>
+              <div className="mt-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => void copy(texts[c.customer.id])}
+                  className="text-[12px] font-bold text-gold border border-gold/40 rounded-full px-4 py-1.5"
+                >
+                  コピーして送る
+                </button>
               </div>
-            )}
-          </li>
-        ))}
-      </ul>
-    </section>
+            </div>
+          )}
+        </div>
+      ))}
+    </Card>
   )
 }

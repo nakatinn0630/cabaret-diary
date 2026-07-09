@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { Timestamp } from 'firebase/firestore'
 import { useAuth } from '../../contexts/AuthContext'
 import { useCustomers } from '../../lib/customers'
@@ -12,9 +12,14 @@ import {
 } from '../../lib/schedules'
 import { ensureCabaageCalendar, upsertEvent } from '../../lib/gcal'
 import type { ScheduleType } from '../../types'
+import { Header, Main, Field, Seg, StickyBar, useToast, inputCls, subTx } from '../../components/ui'
 
-const inputCls =
-  'w-full rounded-lg border border-black/10 bg-black/5 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-gold/50 dark:border-white/10 dark:bg-white/5'
+const SCHED_ICON: Record<ScheduleType, string> = {
+  shift: '🕘',
+  dohan: '🍽️',
+  after: '🌙',
+  appointment: '📌',
+}
 
 const TYPES: ScheduleType[] = ['shift', 'dohan', 'after', 'appointment']
 
@@ -31,6 +36,7 @@ export default function ScheduleEdit() {
   const { sid } = useParams<{ sid: string }>()
   const editing = Boolean(sid)
   const navigate = useNavigate()
+  const toast = useToast()
   const { googleAccessToken } = useAuth()
   const { customers } = useCustomers()
   const { schedules } = useSchedules()
@@ -100,8 +106,10 @@ export default function ScheduleEdit() {
         }
       }
 
-      if (!syncWarn) navigate('/schedule')
-      else setSaving(false)
+      if (!syncWarn) {
+        toast(googleAccessToken ? 'Googleカレンダーに同期しました ✓' : '保存しました ✓')
+        navigate('/schedule')
+      } else setSaving(false)
     } catch (e) {
       setError(e instanceof Error ? e.message : '保存に失敗しました。')
       setSaving(false)
@@ -109,82 +117,75 @@ export default function ScheduleEdit() {
   }
 
   return (
-    <div className="flex min-h-full flex-col">
-      <header className="safe-top sticky top-0 z-10 flex items-center justify-between border-b border-black/10 bg-white/90 px-4 pb-3 backdrop-blur dark:border-white/10 dark:bg-night/90">
-        <Link to="/schedule" className="text-sm text-black/60 dark:text-white/60">
-          ← 予定
-        </Link>
-        <h1 className="text-base font-bold">{editing ? '予定を編集' : '予定を追加'}</h1>
-        <span className="w-8" />
-      </header>
-
-      <div className="flex-1 space-y-3 p-4">
-        <label className="block">
-          <span className="mb-1 block text-xs font-semibold text-black/60 dark:text-white/60">種別</span>
-          <select value={type} onChange={(e) => setType(e.target.value as ScheduleType)} className={inputCls}>
-            {TYPES.map((t) => (
-              <option key={t} value={t}>
-                {SCHEDULE_LABEL[t]}
-              </option>
-            ))}
-          </select>
-        </label>
+    <div className="h-full flex flex-col relative">
+      <Header title={editing ? '予定を編集' : '予定を追加'} back onBack={() => navigate('/schedule')} />
+      <Main className="!pb-32">
+        <Field label="種別">
+          <Seg<ScheduleType>
+            options={TYPES.map((t) => ({ v: t, label: `${SCHED_ICON[t]} ${SCHEDULE_LABEL[t]}` }))}
+            value={type}
+            onChange={setType}
+          />
+        </Field>
 
         {needsCustomer && (
-          <label className="block">
-            <span className="mb-1 block text-xs font-semibold text-black/60 dark:text-white/60">お客様</span>
-            <select value={customerId} onChange={(e) => setCustomerId(e.target.value)} className={inputCls}>
-              <option value="">（未選択）</option>
+          <Field label="お客様">
+            <div className="flex flex-wrap gap-2">
               {customers.map((c) => (
-                <option key={c.id} value={c.id}>
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setCustomerId(c.id)}
+                  className={`px-4 py-2.5 rounded-full text-[13px] font-semibold border transition min-h-[44px] ${
+                    customerId === c.id
+                      ? 'bg-rose text-white border-rose shadow'
+                      : 'bg-white/50 dark:bg-white/[0.06] border-night/10 dark:border-white/15'
+                  }`}
+                >
                   {c.nickname}
-                </option>
+                </button>
               ))}
-            </select>
-          </label>
+            </div>
+          </Field>
         )}
 
-        <label className="block">
-          <span className="mb-1 block text-xs font-semibold text-black/60 dark:text-white/60">日付</span>
+        <Field label="日付">
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} />
-        </label>
+        </Field>
         <div className="grid grid-cols-2 gap-3">
-          <label className="block">
-            <span className="mb-1 block text-xs font-semibold text-black/60 dark:text-white/60">開始</span>
+          <Field label="開始">
             <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className={inputCls} />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-xs font-semibold text-black/60 dark:text-white/60">終了</span>
+          </Field>
+          <Field label="終了">
             <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className={inputCls} />
-          </label>
+          </Field>
         </div>
 
-        <label className="block">
-          <span className="mb-1 block text-xs font-semibold text-black/60 dark:text-white/60">メモ</span>
-          <textarea value={memo} onChange={(e) => setMemo(e.target.value)} rows={2} className={inputCls} />
-        </label>
+        <Field label="メモ">
+          <textarea
+            value={memo}
+            onChange={(e) => setMemo(e.target.value)}
+            rows={2}
+            className={inputCls}
+            placeholder="場所・約束ごと など"
+          />
+        </Field>
 
         {!googleAccessToken && (
-          <p className="text-[11px] text-black/40 dark:text-white/40">
+          <p className={`text-[11px] ${subTx}`}>
             ※ Googleカレンダー未連携です。予定一覧の「カレンダー連携」から連携すると自動同期されます。
           </p>
         )}
-        {error && <p className="text-sm text-red-500">{error}</p>}
-        {syncWarn && <p className="text-sm text-amber-600 dark:text-amber-400">{syncWarn}</p>}
+        {error && <p className="text-[13px] font-semibold text-red-500">{error}</p>}
+        {syncWarn && <p className="text-[13px] font-semibold text-amber-600 dark:text-amber-400">{syncWarn}</p>}
+      </Main>
 
-        <button
-          onClick={() => void submit()}
-          disabled={saving}
-          className="mt-2 w-full rounded-lg bg-gold py-3 text-sm font-bold text-night disabled:opacity-60"
-        >
-          {saving ? '保存中…' : editing ? '更新する' : '追加する'}
-        </button>
-        {syncWarn && (
-          <button onClick={() => navigate('/schedule')} className="w-full py-2 text-sm text-black/60 dark:text-white/60">
-            予定一覧へ戻る
-          </button>
-        )}
-      </div>
+      <StickyBar
+        onSave={() => void submit()}
+        onCancel={() => navigate('/schedule')}
+        saveLabel={saving ? '保存中…' : editing ? '更新する' : '追加する'}
+        disabled={saving}
+      />
     </div>
   )
 }

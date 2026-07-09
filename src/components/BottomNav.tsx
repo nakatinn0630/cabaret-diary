@@ -1,28 +1,35 @@
 import { NavLink } from 'react-router-dom'
+import { subTx } from './ui'
 
 const items = [
   { to: '/', label: 'ホーム', icon: '🏠', end: true },
   { to: '/customers', label: '顧客', icon: '👥', end: false },
   { to: '/schedule', label: '予定', icon: '📅', end: false },
   { to: '/reply', label: '返信', icon: '💬', end: false },
+  { to: '/menu', label: 'メニュー', icon: '☰', end: false },
 ]
 
-// F-01 導線用のボトムナビ（Phase 2以降で予定/カレンダー等を追加）
+// クロードデザインの TabBar を移植（下部フローティングのグラスタブ・5導線）
 export function BottomNav() {
   return (
-    <nav className="safe-bottom sticky bottom-0 z-10 flex border-t border-black/10 bg-white/95 backdrop-blur dark:border-white/10 dark:bg-night/95">
+    <nav
+      aria-label="メインタブ"
+      className="safe-bottom absolute bottom-0 inset-x-0 z-30 flex border-t border-night/10 bg-white/75 pt-1.5 backdrop-blur-lg dark:border-white/10 dark:bg-night/80"
+    >
       {items.map((it) => (
         <NavLink
           key={it.to}
           to={it.to}
           end={it.end}
           className={({ isActive }) =>
-            `flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium ${
-              isActive ? 'text-gold' : 'text-black/50 dark:text-white/50'
+            `flex flex-1 flex-col items-center gap-0.5 py-1 text-[10px] font-semibold min-h-[44px] ${
+              isActive ? 'text-gold' : subTx
             }`
           }
         >
-          <span className="text-lg leading-none">{it.icon}</span>
+          <span className="text-[19px] leading-none" aria-hidden="true">
+            {it.icon}
+          </span>
           {it.label}
         </NavLink>
       ))}

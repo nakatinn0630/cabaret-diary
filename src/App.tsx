@@ -13,6 +13,7 @@ import Consult from './pages/cast/Consult'
 import SalesReport from './pages/cast/SalesReport'
 import Compatibility from './pages/cast/Compatibility'
 import Notices from './pages/cast/Notices'
+import Menu from './pages/cast/Menu'
 import ConsoleHome from './pages/console/ConsoleHome'
 import StoreConsole from './pages/console/StoreConsole'
 import type { ReactNode } from 'react'
@@ -54,6 +55,7 @@ export default function App() {
         <Route path="/sales" element={<SalesReport />} />
         <Route path="/compat" element={<Compatibility />} />
         <Route path="/notices" element={<Notices />} />
+        <Route path="/menu" element={<Menu />} />
       </Route>
 
       {/* 店舗コンソール（D-1: 別サーフェス。将来は別デプロイに分離予定） */}

@@ -4,10 +4,28 @@ import { useCustomers, useVisits } from '../../lib/customers'
 import { useCustomerImports, createLineImport } from '../../lib/lineImports'
 import { parseLineExport, type ParsedLine } from '../../lib/lineParser'
 import { generateReplies } from '../../lib/ai'
-import type { ReplySuggestion } from '../../types'
+import type { ReplySuggestion, ReplyTone } from '../../types'
+import {
+  Card,
+  Chip,
+  Empty,
+  Field,
+  Header,
+  Main,
+  Seg,
+  goldTx,
+  inputCls,
+  subTx,
+  useToast,
+} from '../../components/ui'
 
-const inputCls =
-  'w-full rounded-lg border border-black/10 bg-black/5 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-gold/50 dark:border-white/10 dark:bg-white/5'
+// トーンごとの Chip 配色（軽め=rose / 標準=gold / 丁寧=neutral）
+function toneChip(tone: ReplyTone): string {
+  if (tone === '軽め')
+    return 'font-bold border-[#e6789b]/40 bg-[#e6789b]/10 text-[#a8395c] dark:text-[#f0c3d2]'
+  if (tone === '標準') return `font-bold border-gold/40 bg-gold/10 ${goldTx}`
+  return 'font-bold border-night/15 dark:border-white/20'
+}
 
 export default function ReplyAssist() {
   const [params, setParams] = useSearchParams()
@@ -15,6 +33,7 @@ export default function ReplyAssist() {
   const { customers } = useCustomers()
   const { visits } = useVisits(cid || undefined)
   const { imports } = useCustomerImports(cid || undefined)
+  const toast = useToast()
 
   const customer = customers.find((c) => c.id === cid)
   const latestImport = imports[0]
@@ -25,7 +44,6 @@ export default function ReplyAssist() {
   const [source, setSource] = useState<'proxy' | 'local' | null>(null)
   const [genBusy, setGenBusy] = useState(false)
   const [genErr, setGenErr] = useState<string | null>(null)
-  const [copied, setCopied] = useState<string | null>(null)
 
   // 取込フォーム
   const [showImport, setShowImport] = useState(false)
@@ -67,8 +85,7 @@ export default function ReplyAssist() {
   const copy = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text)
-      setCopied(text)
-      setTimeout(() => setCopied(null), 1500)
+      toast('コピーしました')
     } catch {
       /* ignore */
     }
@@ -92,53 +109,55 @@ export default function ReplyAssist() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <header className="safe-top sticky top-0 z-10 flex items-center justify-between border-b border-black/10 bg-white/90 px-4 pb-3 backdrop-blur dark:border-white/10 dark:bg-night/90">
-        <h1 className="text-lg font-bold">返信アシスト</h1>
-        {customer && (
-          <Link to={`/customers/${cid}`} className="text-sm text-gold">
-            {customer.nickname} →
-          </Link>
-        )}
-      </header>
+      <Header
+        title="返信アシスト"
+        right={
+          customer ? (
+            <Link to={`/customers/${cid}`} className="text-[13px] font-semibold text-gold">
+              {customer.nickname} ›
+            </Link>
+          ) : undefined
+        }
+      />
 
-      <div className="flex-1 space-y-4 p-4">
-        {/* 顧客選択 */}
-        <label className="block">
-          <span className="mb-1 block text-xs font-semibold text-black/60 dark:text-white/60">お客様</span>
-          <select
-            value={cid}
-            onChange={(e) => setParams(e.target.value ? { cid: e.target.value } : {})}
-            className={inputCls}
-          >
-            <option value="">（選択してください）</option>
-            {customers.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nickname}
-              </option>
-            ))}
-          </select>
-        </label>
+      <Main>
+        {/* 顧客選択（gold選択のタップピル） */}
+        <Field label="顧客を選択">
+          {customers.length === 0 ? (
+            <Empty>顧客が登録されていません。</Empty>
+          ) : (
+            <Seg
+              options={customers.map((c) => ({ v: c.id, label: c.nickname }))}
+              value={cid}
+              onChange={(v) => setParams(v ? { cid: v } : {})}
+            />
+          )}
+        </Field>
 
         {cid && (
           <>
             {/* 学習ステータス */}
-            <div className="flex flex-wrap items-center gap-2 text-xs text-black/50 dark:text-white/50">
+            <div className="flex flex-wrap items-center gap-2">
               {latestImport ? (
-                <span className="rounded-full bg-black/5 px-2 py-0.5 dark:bg-white/10">
+                <Chip className={`${subTx} border-night/10 dark:border-white/15`}>
                   口調: {latestImport.stats.tone}（{latestImport.messages.length}件学習済み）
-                </span>
+                </Chip>
               ) : (
-                <span>トーク未取込</span>
+                <span className={`text-[12px] ${subTx}`}>トーク未取込</span>
               )}
-              <button onClick={() => setShowImport((s) => !s)} className="font-semibold text-gold">
+              <button
+                type="button"
+                onClick={() => setShowImport((s) => !s)}
+                className="text-[12px] font-bold text-gold px-1 py-1"
+              >
                 {showImport ? '取込を閉じる' : 'LINEトークを取込'}
               </button>
             </div>
 
             {/* F-05 取込フォーム */}
             {showImport && (
-              <div className="rounded-xl border border-black/10 p-3 dark:border-white/10">
-                <p className="text-xs text-black/60 dark:text-white/60">
+              <Card className="p-4 space-y-3">
+                <p className={`text-[12px] leading-relaxed ${subTx}`}>
                   LINEの「トーク履歴を送信」で書き出したテキストを貼り付け、または .txt を選択してください。
                 </p>
                 <input
@@ -148,83 +167,97 @@ export default function ReplyAssist() {
                     const f = e.target.files?.[0]
                     if (f) f.text().then(setRawText)
                   }}
-                  className="mt-2 text-xs"
+                  className="text-[12px]"
                 />
                 <textarea
                   value={rawText}
                   onChange={(e) => setRawText(e.target.value)}
                   rows={4}
                   placeholder="ここにトーク履歴を貼り付け"
-                  className={`mt-2 ${inputCls}`}
+                  className={inputCls}
                 />
-                <div className="mt-2 flex items-center gap-2">
-                  <button onClick={doParse} className="rounded-lg border border-black/15 px-3 py-1.5 text-sm font-semibold dark:border-white/20">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={doParse}
+                    className="rounded-full border border-night/15 dark:border-white/20 px-4 py-2 text-[13px] font-semibold min-h-[40px]"
+                  >
                     解析
                   </button>
                   {parsed && parsed.messages.length > 0 && (
                     <>
-                      <select value={myName} onChange={(e) => setMyName(e.target.value)} className="rounded-lg border border-black/15 bg-transparent px-2 py-1.5 text-sm dark:border-white/20">
+                      <select
+                        value={myName}
+                        onChange={(e) => setMyName(e.target.value)}
+                        className="rounded-full border border-night/15 dark:border-white/20 bg-transparent px-3 py-2 text-[13px] min-h-[40px]"
+                      >
                         {parsed.senders.map((s) => (
                           <option key={s} value={s}>
                             自分＝{s}
                           </option>
                         ))}
                       </select>
-                      <button onClick={() => void saveImport()} className="rounded-lg bg-gold px-3 py-1.5 text-sm font-bold text-night">
+                      <button
+                        type="button"
+                        onClick={() => void saveImport()}
+                        className="rounded-full bg-gold px-4 py-2 text-[13px] font-bold text-night min-h-[40px]"
+                      >
                         保存（{parsed.messages.length}件）
                       </button>
                     </>
                   )}
                 </div>
-                {importMsg && <p className="mt-2 text-xs text-black/60 dark:text-white/60">{importMsg}</p>}
-              </div>
+                {importMsg && <p className={`text-[12px] ${subTx}`}>{importMsg}</p>}
+              </Card>
             )}
 
             {/* F-06 返信案生成 */}
-            <label className="block">
-              <span className="mb-1 block text-xs font-semibold text-black/60 dark:text-white/60">相手の最新メッセージ</span>
+            <Field label="相手からのメッセージ">
               <textarea
                 value={latestMessage}
                 onChange={(e) => setLatestMessage(e.target.value)}
                 rows={3}
-                placeholder={otherLastMsg ? `（空欄なら取込の最新: ${otherLastMsg.slice(0, 20)}…）` : '相手のメッセージを貼り付け'}
+                placeholder={otherLastMsg ? `（空欄なら取込の最新: ${otherLastMsg.slice(0, 20)}…）` : '「今週行けそう」など、届いたメッセージを貼り付け'}
                 className={inputCls}
               />
-            </label>
+            </Field>
             {recentEpisode && (
-              <p className="text-[11px] text-black/40 dark:text-white/40">直近エピソード反映: {recentEpisode.slice(0, 30)}</p>
+              <p className={`text-[11px] ${subTx}`}>直近エピソード反映: {recentEpisode.slice(0, 30)}</p>
             )}
 
             <button
+              type="button"
               onClick={() => void generate()}
               disabled={genBusy}
-              className="w-full rounded-lg bg-gold py-3 text-sm font-bold text-night disabled:opacity-60"
+              className="w-full min-h-[50px] rounded-2xl bg-gold text-night font-bold text-[15px] shadow-lg shadow-gold/30 disabled:opacity-40"
             >
-              {genBusy ? '生成中…' : '✨ 返信案を3つ生成'}
+              {genBusy ? '生成中…' : '3案を作成 ✨'}
             </button>
-            {genErr && <p className="text-sm text-red-500">{genErr}</p>}
+            {genErr && <p className="text-[13px] font-semibold text-red-400">{genErr}</p>}
             {source === 'local' && suggestions.length > 0 && (
-              <p className="text-[11px] text-black/40 dark:text-white/40">
+              <p className={`text-[11px] ${subTx}`}>
                 ※ AIプロキシ未設定のため簡易生成です（VITE_AI_PROXY_URL 設定でClaude生成に切替）。
               </p>
             )}
 
-            <div className="space-y-2">
-              {suggestions.map((s) => (
-                <div key={s.tone} className="rounded-xl border border-black/10 p-3 dark:border-white/10">
-                  <div className="mb-1 flex items-center justify-between">
-                    <span className="rounded-full bg-gold/15 px-2 py-0.5 text-[11px] font-bold text-gold">{s.tone}</span>
-                    <button onClick={() => void copy(s.text)} className="text-xs font-semibold text-gold">
-                      {copied === s.text ? 'コピーしました' : 'コピー'}
-                    </button>
-                  </div>
-                  <p className="whitespace-pre-wrap text-sm">{s.text}</p>
+            {suggestions.map((s) => (
+              <Card key={s.tone} className="p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <Chip className={toneChip(s.tone)}>{s.tone}</Chip>
+                  <button
+                    type="button"
+                    onClick={() => void copy(s.text)}
+                    className="text-[12px] font-bold text-gold px-3 py-2"
+                  >
+                    コピー
+                  </button>
                 </div>
-              ))}
-            </div>
+                <p className="whitespace-pre-wrap text-[13px] leading-relaxed">{s.text}</p>
+              </Card>
+            ))}
           </>
         )}
-      </div>
+      </Main>
     </div>
   )
 }
