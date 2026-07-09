@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useCustomers, useVisits } from '../../lib/customers'
 import { useCustomerImports, createLineImport } from '../../lib/lineImports'
 import { parseLineExport, type ParsedLine } from '../../lib/lineParser'
-import { generateReplies } from '../../lib/ai'
+import { generateReplies, type AiSource } from '../../lib/ai'
 import type { ReplySuggestion, ReplyTone } from '../../types'
 import {
   Card,
@@ -41,7 +41,7 @@ export default function ReplyAssist() {
 
   const [latestMessage, setLatestMessage] = useState('')
   const [suggestions, setSuggestions] = useState<ReplySuggestion[]>([])
-  const [source, setSource] = useState<'proxy' | 'local' | null>(null)
+  const [source, setSource] = useState<AiSource | null>(null)
   const [genBusy, setGenBusy] = useState(false)
   const [genErr, setGenErr] = useState<string | null>(null)
 
