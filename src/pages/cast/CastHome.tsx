@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../../contexts/AuthContext'
 import { useCustomers } from '../../lib/customers'
+import { useProfileSettings } from '../../lib/sales'
 import { useSchedules, SCHEDULE_LABEL } from '../../lib/schedules'
 import { RankBadge } from '../../components/RankBadge'
 import { SpecialContacts } from '../../components/SpecialContacts'
@@ -16,12 +16,13 @@ const SCHED_ICON: Record<ScheduleType, string> = {
 }
 
 export default function CastHome() {
-  const { user } = useAuth()
   const navigate = useNavigate()
   const { customers } = useCustomers()
   const { schedules } = useSchedules()
+  const { settings } = useProfileSettings()
 
-  const name = user?.displayName ?? user?.email ?? 'ゲスト'
+  // Google名は使わず、設定した源氏名を表示（未設定時は名前なしの挨拶）
+  const name = settings.stageName?.trim() ?? ''
   const alerting = customers.filter((c) => c.riskScore >= 50).sort((a, b) => b.riskScore - a.riskScore)
   const topSpenders = [...customers].sort((a, b) => b.totalSpent - a.totalSpent).slice(0, 3)
 
@@ -37,7 +38,7 @@ export default function CastHome() {
 
   return (
     <div className="h-full flex flex-col">
-      <Header title={`こんばんは、${name}さん 🌙`} />
+      <Header title={name ? `こんばんは、${name}さん 🌙` : 'こんばんは 🌙'} />
       <Main>
         <SectionTitle>今日の予定</SectionTitle>
         {todaySchedules.length === 0 ? (

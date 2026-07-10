@@ -80,12 +80,12 @@ export default function Consult() {
 
   return (
     <div
-      className="flex min-h-full flex-col bg-[#241242]/95 text-[#f3eee4]"
+      className="flex h-full flex-col bg-[#241242]/95 text-[#f3eee4]"
       style={{ colorScheme: 'dark' }}
     >
       <Header title="🤵 黒服相談" back onBack={() => navigate('/')} />
 
-      <main className="flex-1 overflow-y-auto px-4 pb-4 space-y-3">
+      <main className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 space-y-3">
         {messages.length === 0 && (
           <p className="mt-6 text-center text-[13px] leading-relaxed text-white/50">
             誰にも言えない悩み、ここで話していいよ。

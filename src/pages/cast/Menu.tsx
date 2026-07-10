@@ -1,6 +1,8 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
-import { Header, Main, Card, Avatar, subTx } from '../../components/ui'
+import { useProfileSettings, saveProfileSettings } from '../../lib/sales'
+import { Header, Main, Card, Avatar, Field, inputCls, subTx, useToast } from '../../components/ui'
 
 const items: { icon: string; label: string; to: string }[] = [
   { icon: '📊', label: '売上レポート', to: '/sales' },
@@ -10,21 +12,90 @@ const items: { icon: string; label: string; to: string }[] = [
   { icon: '🏢', label: '店舗コンソール', to: '/console' },
 ]
 
-// クロードデザインの MenuScreen を移植（プロフィール＋各機能導線＋ログアウト）
+// クロードデザインの MenuScreen を移植（源氏名の設定＋各機能導線＋ログアウト）
 export default function Menu() {
-  const { user, signOut } = useAuth()
-  const name = user?.displayName ?? user?.email ?? 'ゲスト'
+  const { signOut } = useAuth()
+  const toast = useToast()
+  const { settings } = useProfileSettings()
+  const stageName = settings.stageName?.trim() ?? ''
+
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  // 設定読み込み後に下書きへ反映
+  useEffect(() => {
+    setDraft(stageName)
+  }, [stageName])
+
+  const save = async () => {
+    setSaving(true)
+    try {
+      await saveProfileSettings({ stageName: draft.trim() })
+      toast('源氏名を保存しました ✓')
+      setEditing(false)
+    } catch (e) {
+      toast(e instanceof Error ? e.message : '保存に失敗しました')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return (
     <div className="h-full flex flex-col">
       <Header title="メニュー" />
       <Main>
-        <Card className="p-4 flex items-center gap-3">
-          <Avatar name={name} size={48} />
-          <div>
-            <p className="text-[15px] font-bold">{name}</p>
-            <p className={`text-[12px] ${subTx}`}>キャスト</p>
+        {/* プロフィール（源氏名） */}
+        <Card className="p-4 space-y-3">
+          <div className="flex items-center gap-3">
+            <Avatar name={stageName || '？'} size={48} />
+            <div className="flex-1 min-w-0">
+              <p className="text-[15px] font-bold truncate">{stageName || '源氏名 未設定'}</p>
+              <p className={`text-[12px] ${subTx}`}>キャスト</p>
+            </div>
+            {!editing && (
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                className="text-[13px] font-bold text-gold px-2 py-2"
+              >
+                {stageName ? '編集' : '設定'}
+              </button>
+            )}
           </div>
+          {editing && (
+            <div className="space-y-2.5">
+              <Field label="源氏名（お店での名前）">
+                <input
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  placeholder="例：れいな"
+                  autoFocus
+                  className={inputCls}
+                />
+              </Field>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDraft(stageName)
+                    setEditing(false)
+                  }}
+                  className="flex-1 min-h-[44px] rounded-xl border border-night/15 dark:border-white/20 font-semibold text-[13px]"
+                >
+                  キャンセル
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void save()}
+                  disabled={saving || !draft.trim()}
+                  className="flex-[2] min-h-[44px] rounded-xl bg-gold text-night font-bold text-[14px] disabled:opacity-40"
+                >
+                  {saving ? '保存中…' : '保存する'}
+                </button>
+              </div>
+            </div>
+          )}
         </Card>
 
         <Card className="divide-y divide-night/5 dark:divide-white/5">

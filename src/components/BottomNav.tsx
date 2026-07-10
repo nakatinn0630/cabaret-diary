@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import { subTx } from './ui'
 
 const items = [
@@ -9,8 +9,14 @@ const items = [
   { to: '/menu', label: 'メニュー', icon: '☰', end: false },
 ]
 
+// タブを表示するのはルート画面のみ。詳細・フォーム・黒服相談などの
+// 下層画面では非表示にして、保存バーやチャット入力を覆わないようにする。
+const ROOT_PATHS = new Set(['/', '/customers', '/schedule', '/reply', '/menu'])
+
 // クロードデザインの TabBar を移植（下部フローティングのグラスタブ・5導線）
 export function BottomNav() {
+  const { pathname } = useLocation()
+  if (!ROOT_PATHS.has(pathname)) return null
   return (
     <nav
       aria-label="メインタブ"

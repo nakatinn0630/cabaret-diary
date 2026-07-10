@@ -13,6 +13,8 @@ import {
 import { auth, db } from './firebase'
 
 export interface ProfileSettings {
+  /** 源氏名（キャスト自身の表示名。Google名は使わずこれを表示） */
+  stageName?: string
   guaranteeEndDate?: Timestamp
   targetShimei?: number
   targetSales?: number
