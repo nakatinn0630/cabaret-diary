@@ -38,10 +38,14 @@ export default function CustomerEdit() {
       setForm({
         nickname: customer.nickname,
         lineName: customer.lineName,
+        phone: customer.phone,
         realName: customer.realName,
         occupation: customer.occupation,
         companyName: customer.companyName,
         incomeRange: customer.incomeRange,
+        birthday: customer.fortune?.birthday
+          ? new Date(customer.fortune.birthday.toMillis()).toISOString().slice(0, 10)
+          : undefined,
         paymentMethods: customer.paymentMethods,
         tags: customer.tags,
         rank: customer.rank,
@@ -140,6 +144,26 @@ export default function CustomerEdit() {
         <Field label="LINE名称">
           <input value={form.lineName ?? ''} onChange={(e) => set('lineName', e.target.value)} className={inputCls} placeholder="LINEの表示名" />
         </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="電話番号">
+            <input
+              type="tel"
+              inputMode="tel"
+              value={form.phone ?? ''}
+              onChange={(e) => set('phone', e.target.value)}
+              className={inputCls}
+              placeholder="090-0000-0000"
+            />
+          </Field>
+          <Field label="誕生日">
+            <input
+              type="date"
+              value={form.birthday ?? ''}
+              onChange={(e) => set('birthday', e.target.value)}
+              className={inputCls}
+            />
+          </Field>
+        </div>
         <Field label="本名（暗号化保存）">
           <input value={form.realName ?? ''} onChange={(e) => set('realName', e.target.value)} className={inputCls} placeholder="任意" />
         </Field>

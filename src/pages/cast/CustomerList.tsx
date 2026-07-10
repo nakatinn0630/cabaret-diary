@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useCustomers } from '../../lib/customers'
 import { RankBadge, RANK_OPTIONS } from '../../components/RankBadge'
 import { Header, Main, Card, Avatar, Empty, inputCls, subTx } from '../../components/ui'
-import { yen } from '../../lib/format'
+import { yen, daysUntilBirthday } from '../../lib/format'
 import type { CustomerRank } from '../../types'
 
 type SortKey = '更新' | '売上' | 'リスク'
@@ -116,6 +116,14 @@ export default function CustomerList() {
               <div className="flex-1 min-w-0">
                 <p className="text-[14px] font-semibold flex items-center gap-2">
                   {c.nickname} <RankBadge rank={c.rank} />
+                  {(() => {
+                    const d = daysUntilBirthday(c.fortune?.birthday)
+                    return d !== null && d <= 7 ? (
+                      <span aria-label="誕生日が近い" title="誕生日が近い">
+                        🎂
+                      </span>
+                    ) : null
+                  })()}
                 </p>
                 <p className={`text-[12px] truncate ${subTx}`}>
                   {c.visitCount}回 · {yen(c.totalSpent)}

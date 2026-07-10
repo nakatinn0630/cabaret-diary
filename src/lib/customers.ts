@@ -43,10 +43,13 @@ function mapVisit(snap: QueryDocumentSnapshot<DocumentData>): Visit {
 export interface NewCustomer {
   nickname: string
   lineName?: string
+  phone?: string
   realName?: string
   occupation?: string
   companyName?: string
   incomeRange?: string
+  /** 誕生日（YYYY-MM-DD）。fortune.birthday(Timestamp)へ変換して保存 */
+  birthday?: string
   paymentMethods?: PaymentMethod[]
   tags?: string[]
   rank?: CustomerRank
@@ -173,6 +176,7 @@ export async function createCustomer(input: NewCustomer): Promise<string> {
   const ref = await addDoc(customersPath(uid), {
     nickname: input.nickname,
     lineName: input.lineName ?? '',
+    phone: input.phone ?? '',
     realName: input.realName ?? '',
     occupation: input.occupation ?? '',
     companyName: input.companyName ?? '',
@@ -182,6 +186,7 @@ export async function createCustomer(input: NewCustomer): Promise<string> {
     rank: input.rank ?? null,
     rankHistory: input.rank ? [{ rank: input.rank, changedAt: Timestamp.now() }] : [],
     fit: input.fit ?? null,
+    fortune: input.birthday ? { birthday: Timestamp.fromDate(new Date(input.birthday)) } : null,
     pinnedCautions: input.pinnedCautions ?? [],
     memo: input.memo ?? '',
     totalSpent: 0,
@@ -201,7 +206,12 @@ export async function updateCustomer(
   rankChanged = false,
 ): Promise<void> {
   const uid = requireUid()
-  const data: DocumentData = { ...patch, updatedAt: serverTimestamp() }
+  // birthday(文字列) は fortune.birthday(Timestamp) へ変換して更新
+  const { birthday, ...rest } = patch
+  const data: DocumentData = { ...rest, updatedAt: serverTimestamp() }
+  if (birthday !== undefined) {
+    data['fortune.birthday'] = birthday ? Timestamp.fromDate(new Date(birthday)) : null
+  }
   if (rankChanged && patch.rank) {
     data.rankHistory = arrayUnion({ rank: patch.rank, changedAt: Timestamp.now() })
   }

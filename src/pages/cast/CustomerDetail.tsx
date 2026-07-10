@@ -17,7 +17,7 @@ import {
   goldTx,
   useToast,
 } from '../../components/ui'
-import { yen } from '../../lib/format'
+import { yen, fmtMonthDay, daysUntilBirthday, tagColorClass } from '../../lib/format'
 import type { FitLevel, PaymentMethod } from '../../types'
 
 const PAY_LABEL: Record<PaymentMethod, string> = { cash: '現金', card: 'カード', urikake: '売掛' }
@@ -54,6 +54,16 @@ export default function CustomerDetail() {
   }
 
   const c = customer
+  const bdayDays = daysUntilBirthday(c.fortune?.birthday)
+  const bdaySoon = bdayDays !== null && bdayDays <= 7
+  const copy = async (label: string, val: string) => {
+    try {
+      await navigator.clipboard.writeText(val)
+    } catch {
+      /* クリップボード権限が無くても失敗させない */
+    }
+    toast(`${label}をコピーしました`)
+  }
   const onDelete = async () => {
     if (!cid) return
     if (!confirmDel) {
@@ -87,19 +97,53 @@ export default function CustomerDetail() {
           <div className="flex items-center gap-3">
             <Avatar name={c.nickname} size={52} />
             <div className="min-w-0">
-              <p className="font-serif text-[19px] font-bold flex items-center gap-2">
+              <p className="font-serif text-[19px] font-bold flex items-center gap-2 flex-wrap">
                 {c.nickname} <RankBadge rank={c.rank} />
+                {bdaySoon && (
+                  <Chip className="border-rose/40 bg-rose/10 text-[#a8395c] dark:text-[#f0c3d2] font-bold">
+                    🎂 誕生日{bdayDays === 0 ? '当日' : `まで${bdayDays}日`}
+                  </Chip>
+                )}
               </p>
               <p className={`text-[12px] ${subTx}`}>
-                LINE: {c.lineName || '—'} ·{' '}
-                {[c.occupation, c.companyName, c.incomeRange].filter(Boolean).join(' / ') || '未登録'}
+                {[
+                  c.fortune?.birthday ? `🎂 ${fmtMonthDay(c.fortune.birthday)}` : '',
+                  [c.occupation, c.companyName, c.incomeRange].filter(Boolean).join(' / '),
+                ]
+                  .filter(Boolean)
+                  .join(' · ') || '未登録'}
               </p>
             </div>
           </div>
+
+          {/* 連絡先（1タップコピー） */}
+          {(c.phone || c.lineName) && (
+            <div className="flex flex-wrap gap-2">
+              {c.phone && (
+                <button
+                  type="button"
+                  onClick={() => void copy('電話番号', c.phone!)}
+                  className="flex items-center gap-1.5 rounded-full border border-night/15 dark:border-white/20 px-3 py-1.5 text-[12px] font-semibold min-h-[36px]"
+                >
+                  📞 {c.phone} <span className={subTx}>⧉</span>
+                </button>
+              )}
+              {c.lineName && (
+                <button
+                  type="button"
+                  onClick={() => void copy('LINE名称', c.lineName!)}
+                  className="flex items-center gap-1.5 rounded-full border border-night/15 dark:border-white/20 px-3 py-1.5 text-[12px] font-semibold min-h-[36px]"
+                >
+                  💬 {c.lineName} <span className={subTx}>⧉</span>
+                </button>
+              )}
+            </div>
+          )}
+
           {(c.tags.length > 0 || c.paymentMethods.length > 0) && (
             <div className="flex flex-wrap gap-1.5">
               {c.tags.map((t) => (
-                <Chip key={t} className="border-night/10 dark:border-white/15 bg-night/5 dark:bg-white/[0.07]">
+                <Chip key={t} className={tagColorClass(t)}>
                   {t}
                 </Chip>
               ))}

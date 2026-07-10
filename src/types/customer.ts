@@ -41,6 +41,7 @@ export interface Customer {
   id: string
   nickname: string // あだ名（必須）
   lineName?: string
+  phone?: string // 電話番号（1タップコピー用）
   realName?: string // 🔒 保存時暗号化
   occupation?: string
   companyName?: string
