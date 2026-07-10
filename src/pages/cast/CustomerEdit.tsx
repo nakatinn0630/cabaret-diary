@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { createCustomer, updateCustomer, useCustomer, type NewCustomer } from '../../lib/customers'
+import { useCrypto } from '../../contexts/CryptoContext'
+import { decField } from '../../lib/crypto'
 import { RANK_OPTIONS } from '../../components/RankBadge'
-import { Header, Main, Field, Seg, MultiPill, inputCls, useToast } from '../../components/ui'
+import { Header, Main, Field, Seg, MultiPill, inputCls, subTx, useToast } from '../../components/ui'
 import type { CustomerRank, Fatigue, FitLevel, PaymentMethod } from '../../types'
 
 const FIT_LEVELS: FitLevel[] = ['得意', '普通', '苦手']
@@ -20,8 +22,10 @@ export default function CustomerEdit() {
   const navigate = useNavigate()
   const toast = useToast()
   const { customer } = useCustomer(cid)
+  const { unlocked, hasPassphrase } = useCrypto()
 
   const [form, setForm] = useState<NewCustomer>({ nickname: '', paymentMethods: ['cash'], tags: [] })
+  const [realNameInput, setRealNameInput] = useState('')
   const [initialRank, setInitialRank] = useState<CustomerRank | undefined>(undefined)
   const [tagsText, setTagsText] = useState('')
   const [rank, setRank] = useState<CustomerRank>('IP')
@@ -39,7 +43,6 @@ export default function CustomerEdit() {
         nickname: customer.nickname,
         lineName: customer.lineName,
         phone: customer.phone,
-        realName: customer.realName,
         occupation: customer.occupation,
         companyName: customer.companyName,
         incomeRange: customer.incomeRange,
@@ -62,6 +65,19 @@ export default function CustomerEdit() {
       }
     }
   }, [editing, customer])
+
+  // SEC-07 本名はロック解除時のみ復号して表示
+  useEffect(() => {
+    if (editing && customer?.realName && unlocked) {
+      let alive = true
+      void decField(customer.realName).then((v) => {
+        if (alive) setRealNameInput(v)
+      })
+      return () => {
+        alive = false
+      }
+    }
+  }, [editing, customer, unlocked])
 
   const set = <K extends keyof NewCustomer>(key: K, value: NewCustomer[K]) =>
     setForm((f) => ({ ...f, [key]: value }))
@@ -87,6 +103,8 @@ export default function CustomerEdit() {
       tags: splitList(tagsText),
       fit: { level: fitLevel, fatigue: fitFatigue, reasonTags: splitList(fitReasonsText) },
       pinnedCautions: cautionsText.split('\n').map((t) => t.trim()).filter(Boolean),
+      // 本名はロック解除時のみ更新（ロック中は既存の暗号値を保持）
+      ...(unlocked ? { realName: realNameInput.trim() } : {}),
     }
     setSaving(true)
     try {
@@ -164,9 +182,33 @@ export default function CustomerEdit() {
             />
           </Field>
         </div>
-        <Field label="本名（暗号化保存）">
-          <input value={form.realName ?? ''} onChange={(e) => set('realName', e.target.value)} className={inputCls} placeholder="任意" />
-        </Field>
+        {unlocked ? (
+          <Field label="本名（暗号化して保存）">
+            <input
+              value={realNameInput}
+              onChange={(e) => setRealNameInput(e.target.value)}
+              className={inputCls}
+              placeholder="任意（この端末で復号済み）"
+              autoComplete="off"
+            />
+          </Field>
+        ) : (
+          <Field label="本名">
+            <div className={`rounded-xl border border-night/10 dark:border-white/15 px-4 py-3 text-[13px] ${subTx}`}>
+              🔒{' '}
+              {hasPassphrase
+                ? 'ロック中です。メニューの「データ暗号化」で解除すると入力できます。'
+                : 'メニューの「データ暗号化」でパスフレーズを設定すると、暗号化して入力できます。'}
+              <button
+                type="button"
+                onClick={() => navigate('/menu')}
+                className="ml-1 font-bold text-gold"
+              >
+                設定へ
+              </button>
+            </div>
+          </Field>
+        )}
         <div className="grid grid-cols-2 gap-3">
           <Field label="職業">
             <input value={form.occupation ?? ''} onChange={(e) => set('occupation', e.target.value)} className={inputCls} placeholder="経営者 など" />

@@ -15,6 +15,7 @@ import {
 } from 'firebase/firestore'
 import { auth, db } from './firebase'
 import { demoActive, demoConsultations } from './demo'
+import { encFieldMaybe, decField } from './crypto'
 import type { Consultation, ConsultationMessage, ConsultationCategory, EscalationTarget } from '../types'
 
 function requireUid(): string {
@@ -67,9 +68,17 @@ export function useConsultation(tid: string | undefined): Consultation | null {
     }
     const u = auth.currentUser
     if (!u || !tid) return
-    return onSnapshot(consultRef(u.uid, tid), (snap) =>
-      setC(snap.exists() ? { id: snap.id, ...(snap.data() as Omit<Consultation, 'id'>) } : null),
-    )
+    return onSnapshot(consultRef(u.uid, tid), (snap) => {
+      if (!snap.exists()) {
+        setC(null)
+        return
+      }
+      const raw = { id: snap.id, ...(snap.data() as Omit<Consultation, 'id'>) }
+      // SEC-07 本文を復号（ロック中は目印を表示）
+      void Promise.all(
+        (raw.messages ?? []).map(async (m) => ({ ...m, text: await decField(m.text) })),
+      ).then((messages) => setC({ ...raw, messages }))
+    })
   }, [tid])
   return c
 }
@@ -79,7 +88,7 @@ export async function createConsultation(first: ConsultationMessage): Promise<st
   if (demoActive()) return 'dc_1'
   const uid = requireUid()
   const ref = await addDoc(consultsPath(uid), {
-    messages: [first],
+    messages: [{ ...first, text: await encFieldMaybe(first.text) }],
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   })
@@ -93,7 +102,8 @@ export async function appendMessage(
 ): Promise<void> {
   if (demoActive()) return
   const uid = requireUid()
-  const data: DocumentData = { messages: arrayUnion(msg), updatedAt: serverTimestamp() }
+  const stored = { ...msg, text: await encFieldMaybe(msg.text) }
+  const data: DocumentData = { messages: arrayUnion(stored), updatedAt: serverTimestamp() }
   if (meta?.category) data.category = meta.category
   if (meta?.escalatedTo) data.escalatedTo = meta.escalatedTo
   await updateDoc(consultRef(uid, tid), data)

@@ -18,6 +18,10 @@ export interface ProfileSettings {
   stageName?: string
   /** 自分の誕生日（YYYY-MM-DD）。占い診断で毎回入力しなくて済むよう保存 */
   birthday?: string
+  /** SEC-07 暗号化パスフレーズ用ソルト（base64・秘密ではない） */
+  encSalt?: string
+  /** SEC-07 パスフレーズ検証トークン（暗号化済み） */
+  encCheck?: string
   guaranteeEndDate?: Timestamp
   targetShimei?: number
   targetSales?: number

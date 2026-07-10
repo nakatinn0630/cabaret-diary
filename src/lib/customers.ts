@@ -19,6 +19,7 @@ import {
 import { auth, db } from './firebase'
 import { computeRisk } from './risk'
 import { demoActive, demoCustomers, demoVisitsByCustomer } from './demo'
+import { encField } from './crypto'
 import type { Customer, Visit, CustomerRank, PaymentMethod, Bottle, Fit } from '../types'
 
 function requireUid(): string {
@@ -194,7 +195,7 @@ export async function createCustomer(input: NewCustomer): Promise<string> {
     nickname: input.nickname,
     lineName: input.lineName ?? '',
     phone: input.phone ?? '',
-    realName: input.realName ?? '',
+    realName: await encField(input.realName), // SEC-07 本名は暗号化して保存
     occupation: input.occupation ?? '',
     companyName: input.companyName ?? '',
     incomeRange: input.incomeRange ?? '',
@@ -224,11 +225,14 @@ export async function updateCustomer(
 ): Promise<void> {
   if (demoActive()) return
   const uid = requireUid()
-  // birthday(文字列) は fortune.birthday(Timestamp) へ変換して更新
-  const { birthday, ...rest } = patch
+  // birthday(文字列)→fortune.birthday(Timestamp)、realName は SEC-07 暗号化して更新
+  const { birthday, realName, ...rest } = patch
   const data: DocumentData = { ...rest, updatedAt: serverTimestamp() }
   if (birthday !== undefined) {
     data['fortune.birthday'] = birthday ? Timestamp.fromDate(new Date(birthday)) : null
+  }
+  if (realName !== undefined) {
+    data.realName = await encField(realName)
   }
   if (rankChanged && patch.rank) {
     data.rankHistory = arrayUnion({ rank: patch.rank, changedAt: Timestamp.now() })
