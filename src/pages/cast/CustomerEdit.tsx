@@ -7,6 +7,7 @@ import type { CustomerRank, Fatigue, FitLevel, PaymentMethod } from '../../types
 
 const FIT_LEVELS: FitLevel[] = ['得意', '普通', '苦手']
 const FATIGUE_LEVELS: Fatigue[] = ['低', '中', '高']
+const INCOME_OPTIONS: string[] = ['不明', '〜500万', '500〜1000万', '1000〜2000万', '2000〜3000万', '3000万〜']
 const PAY_OPTIONS: { v: PaymentMethod; label: string }[] = [
   { v: 'cash', label: '現金' },
   { v: 'card', label: 'カード' },
@@ -122,7 +123,7 @@ export default function CustomerEdit() {
           </Field>
         </div>
 
-        <Field label="LINE名">
+        <Field label="LINE名称">
           <input value={form.lineName ?? ''} onChange={(e) => set('lineName', e.target.value)} className={inputCls} placeholder="LINEの表示名" />
         </Field>
         <Field label="本名（暗号化保存）">
@@ -136,8 +137,12 @@ export default function CustomerEdit() {
             <input value={form.companyName ?? ''} onChange={(e) => set('companyName', e.target.value)} className={inputCls} placeholder="任意" />
           </Field>
         </div>
-        <Field label="年収レンジ">
-          <input value={form.incomeRange ?? ''} onChange={(e) => set('incomeRange', e.target.value)} className={inputCls} placeholder="2000万〜" />
+        <Field label="年収">
+          <Seg
+            options={INCOME_OPTIONS}
+            value={form.incomeRange ?? ''}
+            onChange={(v) => set('incomeRange', v)}
+          />
         </Field>
 
         <Field label="ランク">

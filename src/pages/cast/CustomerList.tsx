@@ -49,11 +49,11 @@ export default function CustomerList() {
           </button>
         }
       />
-      <div className="px-4 space-y-2.5 pb-3">
+      <div className="px-5 space-y-2.5 pb-3">
         <input
           value={qText}
           onChange={(e) => setQText(e.target.value)}
-          placeholder="🔍 あだ名・LINE名・タグで検索"
+          placeholder="🔍 あだ名・LINE名称・タグで検索"
           aria-label="顧客検索"
           className={inputCls}
         />

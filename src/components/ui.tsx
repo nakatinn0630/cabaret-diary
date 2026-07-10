@@ -199,8 +199,8 @@ export function Header({
 }) {
   return (
     <header
-      className="flex items-center gap-2 px-4 pb-3 flex-shrink-0"
-      style={{ paddingTop: 'max(env(safe-area-inset-top), 20px)' }}
+      className="sticky top-0 z-20 flex items-center gap-2 px-5 pb-3 flex-shrink-0"
+      style={{ paddingTop: 'max(env(safe-area-inset-top), 52px)' }}
     >
       {back && (
         <button
@@ -219,7 +219,9 @@ export function Header({
 
 export function Main({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
-    <main className={`flex-1 overflow-y-auto px-4 pb-28 space-y-3.5 ${className}`}>{children}</main>
+    <main className={`flex-1 min-h-0 overflow-y-auto px-5 pb-28 space-y-3.5 ${className}`}>
+      {children}
+    </main>
   )
 }
 
