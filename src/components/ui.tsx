@@ -191,15 +191,17 @@ export function Header({
   back,
   onBack,
   right,
+  className = '',
 }: {
   title: ReactNode
   back?: boolean
   onBack?: () => void
   right?: ReactNode
+  className?: string
 }) {
   return (
     <header
-      className="sticky top-0 z-20 flex items-center gap-2 px-5 pb-3 flex-shrink-0"
+      className={`sticky top-0 z-20 flex items-center gap-2 px-5 pb-3 flex-shrink-0 backdrop-blur-md bg-white/70 dark:bg-night/60 border-b border-night/5 dark:border-white/10 ${className}`}
       style={{ paddingTop: 'max(env(safe-area-inset-top), 52px)' }}
     >
       {back && (

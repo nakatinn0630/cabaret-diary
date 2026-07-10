@@ -12,7 +12,7 @@ import {
 } from '../../lib/schedules'
 import { ensureCabaageCalendar, upsertEvent } from '../../lib/gcal'
 import type { ScheduleType } from '../../types'
-import { Header, Main, Field, Seg, StickyBar, useToast, inputCls, subTx } from '../../components/ui'
+import { Header, Main, Field, Seg, useToast, inputCls, subTx } from '../../components/ui'
 
 const SCHED_ICON: Record<ScheduleType, string> = {
   shift: '🕘',
@@ -118,8 +118,22 @@ export default function ScheduleEdit() {
 
   return (
     <div className="h-full flex flex-col relative">
-      <Header title={editing ? '予定を編集' : '予定を追加'} back onBack={() => navigate('/schedule')} />
-      <Main className="!pb-32">
+      <Header
+        title={editing ? '予定を編集' : '予定を追加'}
+        back
+        onBack={() => navigate('/schedule')}
+        right={
+          <button
+            type="button"
+            onClick={() => void submit()}
+            disabled={saving}
+            className="rounded-full bg-gold text-night font-bold text-[13px] px-4 py-2 min-h-[36px] shadow-sm shadow-gold/30 disabled:opacity-40"
+          >
+            {saving ? '保存中…' : editing ? '更新' : '追加'}
+          </button>
+        }
+      />
+      <Main className="!pb-10">
         <Field label="種別">
           <Seg<ScheduleType>
             options={TYPES.map((t) => ({ v: t, label: `${SCHED_ICON[t]} ${SCHEDULE_LABEL[t]}` }))}
@@ -179,13 +193,6 @@ export default function ScheduleEdit() {
         {error && <p className="text-[13px] font-semibold text-red-500">{error}</p>}
         {syncWarn && <p className="text-[13px] font-semibold text-amber-600 dark:text-amber-400">{syncWarn}</p>}
       </Main>
-
-      <StickyBar
-        onSave={() => void submit()}
-        onCancel={() => navigate('/schedule')}
-        saveLabel={saving ? '保存中…' : editing ? '更新する' : '追加する'}
-        disabled={saving}
-      />
     </div>
   )
 }

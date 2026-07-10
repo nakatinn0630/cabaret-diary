@@ -83,7 +83,12 @@ export default function Consult() {
       className="flex h-full flex-col bg-[#241242]/95 text-[#f3eee4]"
       style={{ colorScheme: 'dark' }}
     >
-      <Header title="🤵 黒服相談" back onBack={() => navigate('/')} />
+      <Header
+        title="🤵 黒服相談"
+        back
+        onBack={() => navigate('/')}
+        className="!bg-[#241242]/85 !border-white/10"
+      />
 
       <main className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 space-y-3">
         {messages.length === 0 && (

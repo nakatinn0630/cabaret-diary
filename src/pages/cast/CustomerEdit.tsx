@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { createCustomer, updateCustomer, useCustomer, type NewCustomer } from '../../lib/customers'
 import { RANK_OPTIONS } from '../../components/RankBadge'
-import { Header, Main, Field, Seg, MultiPill, StickyBar, inputCls, useToast } from '../../components/ui'
+import { Header, Main, Field, Seg, MultiPill, inputCls, useToast } from '../../components/ui'
 import type { CustomerRank, Fatigue, FitLevel, PaymentMethod } from '../../types'
 
 const FIT_LEVELS: FitLevel[] = ['得意', '普通', '苦手']
@@ -107,8 +107,22 @@ export default function CustomerEdit() {
 
   return (
     <div className="h-full flex flex-col">
-      <Header title={editing ? `${customer?.nickname ?? ''} を編集` : '顧客 新規登録'} back onBack={cancel} />
-      <Main>
+      <Header
+        title={editing ? `${customer?.nickname ?? ''} を編集` : '顧客 新規登録'}
+        back
+        onBack={cancel}
+        right={
+          <button
+            type="button"
+            onClick={() => void submit()}
+            disabled={saving}
+            className="rounded-full bg-gold text-night font-bold text-[13px] px-4 py-2 min-h-[36px] shadow-sm shadow-gold/30 disabled:opacity-40"
+          >
+            {saving ? '保存中…' : editing ? '更新' : '登録'}
+          </button>
+        }
+      />
+      <Main className="!pb-10">
         <div key={shake} className={shake && err ? 'anim-shake' : ''}>
           <Field label="あだ名" required error={err && !form.nickname.trim() ? 'あだ名は必須です' : ''}>
             <input
@@ -172,7 +186,6 @@ export default function CustomerEdit() {
           <textarea value={form.memo ?? ''} onChange={(e) => set('memo', e.target.value)} rows={3} className={inputCls} placeholder="自由メモ" />
         </Field>
       </Main>
-      <StickyBar onSave={() => void submit()} onCancel={cancel} saveLabel={editing ? '更新する' : '登録する'} disabled={saving} />
     </div>
   )
 }
