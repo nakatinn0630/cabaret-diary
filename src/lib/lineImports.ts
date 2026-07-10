@@ -11,6 +11,7 @@ import {
   type QueryDocumentSnapshot,
 } from 'firebase/firestore'
 import { auth, db } from './firebase'
+import { demoActive } from './demo'
 import type { LineImport } from '../types'
 import { analyzeTone, type ParsedLine } from './lineParser'
 
@@ -36,6 +37,7 @@ export async function createLineImport(input: {
   myName: string
   parsed: ParsedLine
 }): Promise<string> {
+  if (demoActive()) return 'demo_import'
   const uid = requireUid()
   const { customerId, myName, parsed } = input
   const stats = analyzeTone(parsed.messages, myName)

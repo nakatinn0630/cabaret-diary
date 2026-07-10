@@ -18,6 +18,7 @@ import {
 } from 'firebase/firestore'
 import { auth, db } from './firebase'
 import { computeRisk } from './risk'
+import { demoActive, demoCustomers, demoVisitsByCustomer } from './demo'
 import type { Customer, Visit, CustomerRank, PaymentMethod, Bottle, Fit } from '../types'
 
 function requireUid(): string {
@@ -76,6 +77,11 @@ export function useCustomers(): { customers: Customer[]; loading: boolean } {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [loading, setLoading] = useState(true)
   useEffect(() => {
+    if (demoActive()) {
+      setCustomers(demoCustomers)
+      setLoading(false)
+      return
+    }
     const u = auth.currentUser
     if (!u) {
       setLoading(false)
@@ -98,6 +104,11 @@ export function useCustomer(cid: string | undefined): { customer: Customer | nul
   const [customer, setCustomer] = useState<Customer | null>(null)
   const [loading, setLoading] = useState(true)
   useEffect(() => {
+    if (demoActive()) {
+      setCustomer(demoCustomers.find((c) => c.id === cid) ?? null)
+      setLoading(false)
+      return
+    }
     const u = auth.currentUser
     if (!u || !cid) {
       setLoading(false)
@@ -119,6 +130,11 @@ export function useVisits(cid: string | undefined): { visits: Visit[]; loading: 
   const [visits, setVisits] = useState<Visit[]>([])
   const [loading, setLoading] = useState(true)
   useEffect(() => {
+    if (demoActive()) {
+      setVisits(cid ? (demoVisitsByCustomer[cid] ?? []) : [])
+      setLoading(false)
+      return
+    }
     const u = auth.currentUser
     if (!u || !cid) {
       setLoading(false)
@@ -172,6 +188,7 @@ async function recomputeAggregates(uid: string, cid: string): Promise<void> {
 
 // ---- 書き込み ----
 export async function createCustomer(input: NewCustomer): Promise<string> {
+  if (demoActive()) return 'demo_taka' // デモ：既存のサンプル顧客へ遷移
   const uid = requireUid()
   const ref = await addDoc(customersPath(uid), {
     nickname: input.nickname,
@@ -205,6 +222,7 @@ export async function updateCustomer(
   patch: Partial<NewCustomer>,
   rankChanged = false,
 ): Promise<void> {
+  if (demoActive()) return
   const uid = requireUid()
   // birthday(文字列) は fortune.birthday(Timestamp) へ変換して更新
   const { birthday, ...rest } = patch
@@ -220,11 +238,13 @@ export async function updateCustomer(
 }
 
 export async function deleteCustomer(cid: string): Promise<void> {
+  if (demoActive()) return
   const uid = requireUid()
   await deleteDoc(customerRef(uid, cid))
 }
 
 export async function addVisit(cid: string, v: NewVisit): Promise<void> {
+  if (demoActive()) return
   const uid = requireUid()
   await addDoc(visitsPath(uid, cid), {
     date: v.date,

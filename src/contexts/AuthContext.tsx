@@ -7,6 +7,10 @@ import {
   type User,
 } from 'firebase/auth'
 import { auth, googleProvider, isFirebaseConfigured, GOOGLE_CALENDAR_SCOPE } from '../lib/firebase'
+import { demoActive, disableDemo, DEMO_UID } from '../lib/demo'
+
+// デモモード用のダミーユーザー（Firebase認証を通さず画面を表示するため）
+const demoUser = { uid: DEMO_UID, displayName: 'デモ', email: 'demo@example.com' } as unknown as User
 
 type AuthState = {
   user: User | null
@@ -27,6 +31,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(null)
 
   useEffect(() => {
+    if (demoActive()) {
+      setUser(demoUser)
+      setLoading(false)
+      return
+    }
     if (!isFirebaseConfigured) {
       setLoading(false)
       return
@@ -63,6 +72,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const signOut = async () => {
+    if (demoActive()) {
+      disableDemo()
+      setGoogleAccessToken(null)
+      setUser(null)
+      return
+    }
     if (!isFirebaseConfigured) return
     setGoogleAccessToken(null)
     await fbSignOut(auth)

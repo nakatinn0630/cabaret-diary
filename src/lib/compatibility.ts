@@ -6,6 +6,7 @@ import {
   updateDoc,
 } from 'firebase/firestore'
 import { auth, db } from './firebase'
+import { demoActive } from './demo'
 import type { CompatibilityRank, RelationshipType } from '../types'
 
 function requireUid(): string {
@@ -26,6 +27,7 @@ export interface DiagnosisToSave {
 }
 
 export async function saveDiagnosis(cid: string, d: DiagnosisToSave): Promise<string> {
+  if (demoActive()) return 'demo_diag'
   const uid = requireUid()
   const ref = await addDoc(collection(db, 'users', uid, 'customers', cid, 'compatibility'), {
     ...d,
@@ -36,6 +38,7 @@ export async function saveDiagnosis(cid: string, d: DiagnosisToSave): Promise<st
 
 /** F-14 選択した注意点を顧客に保存（接客前・返信生成前に表示） */
 export async function setPinnedCautions(cid: string, pinned: string[]): Promise<void> {
+  if (demoActive()) return
   const uid = requireUid()
   await updateDoc(doc(db, 'users', uid, 'customers', cid), {
     pinnedCautions: pinned,

@@ -14,6 +14,7 @@ import {
   type QueryDocumentSnapshot,
 } from 'firebase/firestore'
 import { auth, db } from './firebase'
+import { demoActive, demoConsultations } from './demo'
 import type { Consultation, ConsultationMessage, ConsultationCategory, EscalationTarget } from '../types'
 
 function requireUid(): string {
@@ -34,6 +35,11 @@ export function useConsultations(): { consultations: Consultation[]; loading: bo
   const [consultations, setConsultations] = useState<Consultation[]>([])
   const [loading, setLoading] = useState(true)
   useEffect(() => {
+    if (demoActive()) {
+      setConsultations(demoConsultations)
+      setLoading(false)
+      return
+    }
     const u = auth.currentUser
     if (!u) {
       setLoading(false)
@@ -55,6 +61,10 @@ export function useConsultations(): { consultations: Consultation[]; loading: bo
 export function useConsultation(tid: string | undefined): Consultation | null {
   const [c, setC] = useState<Consultation | null>(null)
   useEffect(() => {
+    if (demoActive()) {
+      setC(demoConsultations.find((x) => x.id === tid) ?? null)
+      return
+    }
     const u = auth.currentUser
     if (!u || !tid) return
     return onSnapshot(consultRef(u.uid, tid), (snap) =>
@@ -66,6 +76,7 @@ export function useConsultation(tid: string | undefined): Consultation | null {
 
 // ※ messages[].text は本番でアプリ層暗号化（SEC-07）。相談ログは本人以外閲覧不可（店にも共有しない）。
 export async function createConsultation(first: ConsultationMessage): Promise<string> {
+  if (demoActive()) return 'dc_1'
   const uid = requireUid()
   const ref = await addDoc(consultsPath(uid), {
     messages: [first],
@@ -80,6 +91,7 @@ export async function appendMessage(
   msg: ConsultationMessage,
   meta?: { category?: ConsultationCategory; escalatedTo?: EscalationTarget },
 ): Promise<void> {
+  if (demoActive()) return
   const uid = requireUid()
   const data: DocumentData = { messages: arrayUnion(msg), updatedAt: serverTimestamp() }
   if (meta?.category) data.category = meta.category

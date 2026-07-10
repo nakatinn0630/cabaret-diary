@@ -14,6 +14,7 @@ import {
   type QueryDocumentSnapshot,
 } from 'firebase/firestore'
 import { auth, db } from './firebase'
+import { demoActive, demoSchedules } from './demo'
 import type { Schedule, ScheduleType } from '../types'
 
 function requireUid(): string {
@@ -49,6 +50,11 @@ export function useSchedules(): { schedules: Schedule[]; loading: boolean } {
   const [schedules, setSchedules] = useState<Schedule[]>([])
   const [loading, setLoading] = useState(true)
   useEffect(() => {
+    if (demoActive()) {
+      setSchedules(demoSchedules)
+      setLoading(false)
+      return
+    }
     const u = auth.currentUser
     if (!u) {
       setLoading(false)
@@ -68,6 +74,7 @@ export function useSchedules(): { schedules: Schedule[]; loading: boolean } {
 }
 
 export async function createSchedule(input: NewSchedule): Promise<string> {
+  if (demoActive()) return 'ds_1'
   const uid = requireUid()
   const ref = await addDoc(schedulesPath(uid), {
     type: input.type,
@@ -83,16 +90,19 @@ export async function createSchedule(input: NewSchedule): Promise<string> {
 }
 
 export async function updateSchedule(sid: string, patch: Partial<NewSchedule>): Promise<void> {
+  if (demoActive()) return
   const uid = requireUid()
   await updateDoc(scheduleRef(uid, sid), { ...patch, updatedAt: serverTimestamp() })
 }
 
 export async function setGoogleEventId(sid: string, googleEventId: string | null): Promise<void> {
+  if (demoActive()) return
   const uid = requireUid()
   await updateDoc(scheduleRef(uid, sid), { googleEventId })
 }
 
 export async function deleteSchedule(sid: string): Promise<void> {
+  if (demoActive()) return
   const uid = requireUid()
   await deleteDoc(scheduleRef(uid, sid))
 }

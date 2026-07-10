@@ -1,5 +1,7 @@
+import { useEffect } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from './contexts/AuthContext'
+import { enableDemo, disableDemo, demoActive } from './lib/demo'
 import LoginPage from './pages/LoginPage'
 import CastLayout from './pages/cast/CastLayout'
 import CastHome from './pages/cast/CastHome'
@@ -29,9 +31,40 @@ function RequireAuth({ children }: { children: ReactNode }) {
   return <>{children}</>
 }
 
+// /demo アクセスでデモモードを有効化し、フルリロードでトップへ（AuthProviderを再初期化）
+function DemoEntry() {
+  useEffect(() => {
+    enableDemo()
+    window.location.replace('/')
+  }, [])
+  return <div className="flex h-full items-center justify-center text-night dark:text-white">デモを準備中…</div>
+}
+
+// デモ中である旨の小さな固定バッジ（タップで終了）
+function DemoBadge() {
+  if (!demoActive()) return null
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        disableDemo()
+        window.location.replace('/login')
+      }}
+      className="fixed right-3 z-[90] rounded-full bg-rose/90 text-white text-[11px] font-bold px-3 py-1.5 shadow-lg"
+      style={{ bottom: 'calc(env(safe-area-inset-bottom) + 70px)' }}
+      aria-label="デモモードを終了"
+    >
+      🔎 DEMO（タップで終了）
+    </button>
+  )
+}
+
 export default function App() {
   return (
-    <Routes>
+    <>
+      <DemoBadge />
+      <Routes>
+        <Route path="/demo" element={<DemoEntry />} />
       <Route path="/login" element={<LoginPage />} />
 
       {/* キャストアプリ（個人領域） */}
@@ -76,7 +109,8 @@ export default function App() {
         }
       />
 
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   )
 }

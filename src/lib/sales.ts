@@ -11,6 +11,7 @@ import {
   Timestamp,
 } from 'firebase/firestore'
 import { auth, db } from './firebase'
+import { demoActive, demoProfile, demoMonthlyStats, demoShimeiCount } from './demo'
 
 export interface ProfileSettings {
   /** 源氏名（キャスト自身の表示名。Google名は使わずこれを表示） */
@@ -46,6 +47,11 @@ export function useProfileSettings(): { settings: ProfileSettings; loading: bool
   const [settings, setSettings] = useState<ProfileSettings>({})
   const [loading, setLoading] = useState(true)
   useEffect(() => {
+    if (demoActive()) {
+      setSettings(demoProfile)
+      setLoading(false)
+      return
+    }
     const u = auth.currentUser
     if (!u) {
       setLoading(false)
@@ -64,6 +70,7 @@ export function useProfileSettings(): { settings: ProfileSettings; loading: bool
 }
 
 export async function saveProfileSettings(patch: ProfileSettings): Promise<void> {
+  if (demoActive()) return
   const u = auth.currentUser
   if (!u) throw new Error('サインインが必要です')
   await setDoc(
@@ -78,6 +85,11 @@ export function useMonthlyStats(monthKey: string): { stats: MonthlyStats; loadin
   const [stats, setStats] = useState<MonthlyStats>({ totalSales: 0, visitCount: 0, dohanCount: 0 })
   const [loading, setLoading] = useState(true)
   useEffect(() => {
+    if (demoActive()) {
+      setStats(demoMonthlyStats)
+      setLoading(false)
+      return
+    }
     const u = auth.currentUser
     if (!u) {
       setLoading(false)
@@ -114,8 +126,9 @@ export function useMonthlyStats(monthKey: string): { stats: MonthlyStats; loadin
 
 /** 自己申告の指名本数を月次に保存（selfReported.shimeiCount） */
 export async function saveShimeiCount(monthKey: string, shimeiCount: number): Promise<void> {
+  if (demoActive()) return
   const u = auth.currentUser
-  if (!u) throw new Error('サインインが必要です')
+  if (!u) throw new Error('ログインが必要です')
   await setDoc(
     doc(db, 'users', u.uid, 'salesRecords', monthKey),
     { selfReported: { shimeiCount }, updatedAt: serverTimestamp() },
@@ -126,6 +139,10 @@ export async function saveShimeiCount(monthKey: string, shimeiCount: number): Pr
 export function useSalesRecord(monthKey: string): { shimeiCount: number } {
   const [shimeiCount, setShimei] = useState(0)
   useEffect(() => {
+    if (demoActive()) {
+      setShimei(demoShimeiCount)
+      return
+    }
     const u = auth.currentUser
     if (!u) return
     return onSnapshot(doc(db, 'users', u.uid, 'salesRecords', monthKey), (snap) => {
