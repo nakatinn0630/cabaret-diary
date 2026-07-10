@@ -4,18 +4,23 @@ import { auth } from './firebase'
 // F-06 返信案生成 / F-07 特別連絡 / F-08 黒服相談 / F-14 相性診断。
 // 生成の優先順位:
 //   1) VITE_AI_PROXY_URL があれば ai-proxy(Cloud Function 等)経由（サーバでキー秘匿・SEC-10/11/12）
-//   2) VITE_GROQ_API_KEY があれば Groq 無料API を直接呼ぶ（Firebase Hosting 静的配信・無料運用向け）
+//   2) VITE_AI_API_KEY があれば OpenAI互換API(DeepSeek/Groq 等)を直接呼ぶ（静的配信・簡易運用向け）
 //   3) いずれも無ければローカルの簡易テンプレ生成にフォールバック（オフライン/デモ）
-// ※ Groq 直接呼び出しではキーがバンドルに含まれ公開される。無料枠のため影響はレート制限の悪用に限定。
-//   キーを秘匿したい場合は VITE_AI_PROXY_URL のサーバ経由に切り替える（本コードはそのまま利用可）。
+// ※ 直接呼び出しではAPIキーがバンドルに含まれ公開される。DeepSeek等の従量課金APIでは
+//   漏洩＝実費消費のリスクがあるため、残高上限の設定を推奨。秘匿したい場合は
+//   VITE_AI_PROXY_URL のサーバ経由に切り替える（本コードはそのまま利用可）。
+// 既定は DeepSeek(OpenAI互換)。Groq を使う場合は BASE_URL と MODEL を環境変数で上書き。
 
 const PROXY_URL = import.meta.env.VITE_AI_PROXY_URL
-const GROQ_KEY = import.meta.env.VITE_GROQ_API_KEY
-const GROQ_MODEL = import.meta.env.VITE_GROQ_MODEL || 'llama-3.3-70b-versatile'
-const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
-const useGroq = Boolean(GROQ_KEY)
+// 後方互換: 旧 VITE_GROQ_API_KEY / VITE_GROQ_MODEL も引き続き解釈する
+const AI_KEY = import.meta.env.VITE_AI_API_KEY || import.meta.env.VITE_GROQ_API_KEY
+const AI_BASE = (import.meta.env.VITE_AI_BASE_URL || 'https://api.deepseek.com').replace(/\/$/, '')
+const AI_MODEL =
+  import.meta.env.VITE_AI_MODEL || import.meta.env.VITE_GROQ_MODEL || 'deepseek-chat'
+const AI_URL = `${AI_BASE}/chat/completions`
+const useDirect = Boolean(AI_KEY)
 
-export type AiSource = 'proxy' | 'groq' | 'local'
+export type AiSource = 'proxy' | 'api' | 'local'
 
 // ai-proxy は Firebase IDトークンで認証（SEC-01/11）。
 async function proxyHeaders(): Promise<Record<string, string>> {
@@ -36,17 +41,17 @@ function maskPII(text: string): string {
   return text.replace(/\d[\d\- ]{8,}\d/g, '[電話番号]')
 }
 
-/** Groq(OpenAI互換) チャット補完。失敗時は例外→呼び出し側でローカルへフォールバック */
-async function callGroq(
+/** OpenAI互換API(DeepSeek/Groq 等)のチャット補完。失敗時は例外→呼び出し側でローカルへフォールバック */
+async function callAI(
   system: string,
   user: string,
   opts?: { json?: boolean; temperature?: number },
 ): Promise<string> {
-  const res = await fetch(GROQ_URL, {
+  const res = await fetch(AI_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${GROQ_KEY}` },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${AI_KEY}` },
     body: JSON.stringify({
-      model: GROQ_MODEL,
+      model: AI_MODEL,
       messages: [
         { role: 'system', content: system },
         { role: 'user', content: user },
@@ -56,10 +61,10 @@ async function callGroq(
       ...(opts?.json ? { response_format: { type: 'json_object' } } : {}),
     }),
   })
-  if (!res.ok) throw new Error(`Groq ${res.status}`)
+  if (!res.ok) throw new Error(`AI ${res.status}`)
   const data = (await res.json()) as { choices?: { message?: { content?: string } }[] }
   const content = data.choices?.[0]?.message?.content
-  if (!content) throw new Error('Groq empty response')
+  if (!content) throw new Error('AI empty response')
   return content
 }
 
@@ -118,7 +123,7 @@ export async function generateReplies(ctx: ReplyContext): Promise<ReplyResult> {
     return { suggestions: data.suggestions, source: 'proxy' }
   }
 
-  if (useGroq) {
+  if (useDirect) {
     try {
       const system =
         'あなたは日本のキャバクラ/クラブで働くキャストの、LINE返信文面づくりのアシスタントです。' +
@@ -131,7 +136,7 @@ export async function generateReplies(ctx: ReplyContext): Promise<ReplyResult> {
         ctx.toneHint ? `口調のヒント: ${ctx.toneHint}` : '',
         `お客様から届いたメッセージ: ${maskPII(ctx.latestMessage) || '(なし。こちらから送る想定)'}`,
       ].filter(Boolean)
-      const raw = await callGroq(system, lines.join('\n'), { json: true })
+      const raw = await callAI(system, lines.join('\n'), { json: true })
       const parsed = extractJson<{ suggestions?: { tone?: string; text?: string }[] }>(raw)
       const arr = parsed?.suggestions
       if (!Array.isArray(arr) || arr.length === 0) throw new Error('bad shape')
@@ -140,9 +145,9 @@ export async function generateReplies(ctx: ReplyContext): Promise<ReplyResult> {
         text: String(arr[i]?.text ?? arr[i % arr.length]?.text ?? '').trim(),
       }))
       if (suggestions.some((s) => !s.text)) throw new Error('empty text')
-      return { suggestions, source: 'groq' }
+      return { suggestions, source: 'api' }
     } catch {
-      /* Groq失敗時はローカルへ */
+      /* 直接API失敗時はローカルへ */
     }
   }
 
@@ -208,7 +213,7 @@ export async function generateSpecialContact(
     return { text: data.text, source: 'proxy' }
   }
 
-  if (useGroq) {
+  if (useDirect) {
     try {
       const system =
         'あなたはキャバクラ/クラブのキャストの連絡アシスタントです。' +
@@ -222,9 +227,9 @@ export async function generateSpecialContact(
       ]
         .filter(Boolean)
         .join('\n')
-      const raw = (await callGroq(system, user, { temperature: 0.9 })).trim()
+      const raw = (await callAI(system, user, { temperature: 0.9 })).trim()
       const text = raw.replace(/^["「『]|["」』]$/g, '').trim()
-      if (text) return { text, source: 'groq' }
+      if (text) return { text, source: 'api' }
     } catch {
       /* fallthrough */
     }
@@ -294,7 +299,7 @@ export async function consultKurofuku(history: ConsultTurn[], latest: string): P
 
   const { category, escalate } = detectCategory(latest)
 
-  if (useGroq) {
+  if (useDirect) {
     try {
       const system =
         'あなたは夜職（キャバクラ/クラブ）で働く女性を支える、経験豊富で温かい「黒服（ボーイ/内勤）」の相談役です。' +
@@ -307,8 +312,8 @@ export async function consultKurofuku(history: ConsultTurn[], latest: string): P
         .map((t) => `${t.role === 'user' ? 'キャスト' : '黒服'}: ${maskPII(t.text)}`)
         .join('\n')
       const user = `${convo ? convo + '\n' : ''}キャスト: ${maskPII(latest)}\n黒服:`
-      const text = (await callGroq(system, user, { temperature: 0.7 })).trim()
-      if (text) return { text, category, escalate, source: 'groq' }
+      const text = (await callAI(system, user, { temperature: 0.7 })).trim()
+      if (text) return { text, category, escalate, source: 'api' }
     } catch {
       /* fallthrough */
     }
@@ -391,7 +396,7 @@ export async function diagnoseCompatibility(input: CompatInput): Promise<CompatR
     return { ...data, source: 'proxy' }
   }
 
-  if (useGroq) {
+  if (useDirect) {
     try {
       const fmt = (p: CompatPerson) =>
         [
@@ -412,7 +417,7 @@ export async function diagnoseCompatibility(input: CompatInput): Promise<CompatR
         `自分: ${fmt(input.self)}\n相手: ${fmt(input.partner)}\n` +
         `鑑定する関係性(この順・この名称で): ${rels.join('、')}\n` +
         `各関係性ごとに score と reason を出し、rankResult は総合評価にすること。`
-      const raw = await callGroq(system, user, { json: true, temperature: 0.9 })
+      const raw = await callAI(system, user, { json: true, temperature: 0.9 })
       const parsed = extractJson<{
         rankResult?: string
         scoresByRelationship?: { type?: string; score?: number; reason?: string }[]
@@ -441,7 +446,7 @@ export async function diagnoseCompatibility(input: CompatInput): Promise<CompatR
           scoresByRelationship,
           summary: String(parsed?.summary ?? '').trim() || '金と依存を持ち込まなければ縁は本物よ。',
           cautionCandidates: cautionCandidates.length ? cautionCandidates : CAUTION_POOL.slice(0, 4),
-          source: 'groq',
+          source: 'api',
         }
       }
     } catch {
