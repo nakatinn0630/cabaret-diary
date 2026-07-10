@@ -86,7 +86,7 @@ export default function SalesReport() {
   }
 
   return (
-    <div className="flex min-h-full flex-col">
+    <div className="flex h-full flex-col">
       <Header
         title="📊 売上レポート"
         back

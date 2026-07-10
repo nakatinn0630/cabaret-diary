@@ -76,7 +76,7 @@ export default function StoreConsole() {
   const casts = members.filter((m) => m.role === 'cast')
 
   return (
-    <div className="mx-auto flex min-h-full max-w-2xl flex-col bg-night/[0.03] text-night dark:bg-[#151226]/60 dark:text-white">
+    <div className="mx-auto flex h-full max-w-2xl flex-col bg-night/[0.03] text-night dark:bg-[#151226]/60 dark:text-white">
       <Header
         title={store?.name ?? '店舗'}
         back

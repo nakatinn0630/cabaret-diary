@@ -15,6 +15,8 @@ import { auth, db } from './firebase'
 export interface ProfileSettings {
   /** 源氏名（キャスト自身の表示名。Google名は使わずこれを表示） */
   stageName?: string
+  /** 自分の誕生日（YYYY-MM-DD）。占い診断で毎回入力しなくて済むよう保存 */
+  birthday?: string
   guaranteeEndDate?: Timestamp
   targetShimei?: number
   targetSales?: number

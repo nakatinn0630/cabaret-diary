@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useCustomers } from '../../lib/customers'
 import { diagnoseCompatibility, type CompatResult } from '../../lib/ai'
 import { saveDiagnosis, setPinnedCautions } from '../../lib/compatibility'
+import { useProfileSettings, saveProfileSettings } from '../../lib/sales'
 import { Card, SectionTitle, Header, Main, Field, MultiPill, inputCls, goldTx, subTx, useToast } from '../../components/ui'
 import type { RelationshipType } from '../../types'
 
@@ -22,8 +23,17 @@ export default function Compatibility() {
     return ms ? new Date(ms).toISOString().slice(0, 10) : ''
   }, [customer])
 
+  // 自分の誕生日は毎回入力せず、プロフィール設定から復元・保存する
+  const { settings } = useProfileSettings()
   const [selfBday, setSelfBday] = useState('')
+  useEffect(() => {
+    if (settings.birthday) setSelfBday((cur) => cur || settings.birthday || '')
+  }, [settings.birthday])
   const [partnerBday, setPartnerBday] = useState(partnerBirthdayDefault)
+  // 顧客が後から読み込まれたら相手の誕生日を自動反映（未入力時のみ）
+  useEffect(() => {
+    if (partnerBirthdayDefault) setPartnerBday((cur) => cur || partnerBirthdayDefault)
+  }, [partnerBirthdayDefault])
   const [rels, setRels] = useState<RelationshipType[]>(['恋愛', '友人'])
   const [result, setResult] = useState<CompatResult | null>(null)
   const [pinned, setPinned] = useState<string[]>([])
@@ -45,6 +55,10 @@ export default function Compatibility() {
     if (rels.length === 0) return
     setBusy(true)
     setSaved(false)
+    // 自分の誕生日を保存（次回以降は自動入力）
+    if (selfBday && selfBday !== settings.birthday) {
+      void saveProfileSettings({ birthday: selfBday })
+    }
     try {
       const res = await diagnoseCompatibility({
         self: { birthdayMs: selfBday ? new Date(selfBday).getTime() : undefined },
@@ -81,7 +95,7 @@ export default function Compatibility() {
   }
 
   return (
-    <div className="flex min-h-full flex-col">
+    <div className="flex h-full flex-col">
       <Header title="🔮 占い・相性診断" back onBack={() => navigate(cid ? `/customers/${cid}` : '/customers')} />
 
       <Main>
@@ -134,10 +148,10 @@ export default function Compatibility() {
                       style={{ width: `${Math.max(0, Math.min(100, s.score))}%` }}
                     />
                   </div>
-                  <p className={`text-[11px] ${subTx}`}>{s.reason}</p>
+                  <p className={`text-[11px] break-words ${subTx}`}>{s.reason}</p>
                 </div>
               ))}
-              <p className="text-[13px] leading-relaxed pt-1 whitespace-pre-wrap">{result.summary}</p>
+              <p className="text-[13px] leading-relaxed pt-1 whitespace-pre-wrap break-words">{result.summary}</p>
             </Card>
 
             {/* 注意点チェック */}

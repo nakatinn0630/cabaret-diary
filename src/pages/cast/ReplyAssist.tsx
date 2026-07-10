@@ -108,7 +108,7 @@ export default function ReplyAssist() {
   }
 
   return (
-    <div className="flex min-h-full flex-col">
+    <div className="flex h-full flex-col">
       <Header
         title="返信アシスト"
         right={
