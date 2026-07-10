@@ -14,3 +14,7 @@ dist-ssr
 .vscode/*
 !.vscode/extensions.json
 *.log
+
+# Firebase CLI のデプロイキャッシュ
+.firebase/
+firebase-debug.log
