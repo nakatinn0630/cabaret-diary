@@ -20,8 +20,10 @@ const app = isFirebaseConfigured ? initializeApp(firebaseConfig) : undefined
 export const auth: Auth = app ? getAuth(app) : (null as unknown as Auth)
 export const db: Firestore = app ? getFirestore(app) : (null as unknown as Firestore)
 
-// SEC-01: 認証はGoogle OAuthを標準とする
+// SEC-01: 認証はGoogle OAuthを標準とする。
+// 初回ログインは標準スコープ(email/profile)のみ＝センシティブ権限を含まないため、
+// 「未確認アプリ」警告が出ずクリーンなGoogleログインになる。
 export const googleProvider = new GoogleAuthProvider()
-// F-04: Googleカレンダー連携用スコープ（専用カレンダー作成＋イベント読み書き）
+// F-04: Googleカレンダー連携用スコープ（専用カレンダー作成＋イベント読み書き）。
+// センシティブ権限のため初回ログインでは要求せず、連携ボタン押下時のみ追加要求する。
 export const GOOGLE_CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar'
-googleProvider.addScope(GOOGLE_CALENDAR_SCOPE)

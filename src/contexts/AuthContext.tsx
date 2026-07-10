@@ -6,7 +6,7 @@ import {
   signOut as fbSignOut,
   type User,
 } from 'firebase/auth'
-import { auth, googleProvider, isFirebaseConfigured } from '../lib/firebase'
+import { auth, googleProvider, isFirebaseConfigured, GOOGLE_CALENDAR_SCOPE } from '../lib/firebase'
 
 type AuthState = {
   user: User | null
@@ -37,8 +37,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
-  const runGooglePopup = async () => {
-    const result = await signInWithPopup(auth, googleProvider)
+  // withCalendar=false: 標準ログイン（センシティブ権限なし＝未確認アプリ警告が出ない）
+  // withCalendar=true: カレンダー連携用に追加スコープを要求（連携ボタン押下時のみ）
+  const runGooglePopup = async (withCalendar: boolean) => {
+    let provider = googleProvider
+    if (withCalendar) {
+      provider = new GoogleAuthProvider()
+      provider.addScope(GOOGLE_CALENDAR_SCOPE)
+    }
+    const result = await signInWithPopup(auth, provider)
     const cred = GoogleAuthProvider.credentialFromResult(result)
     setGoogleAccessToken(cred?.accessToken ?? null)
   }
@@ -47,12 +54,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!isFirebaseConfigured) {
       throw new Error('Firebaseが未設定です。.env に設定を追加してください（.env.example 参照）。')
     }
-    await runGooglePopup()
+    await runGooglePopup(false)
   }
 
   const reconnectGoogle = async () => {
     if (!isFirebaseConfigured) return
-    await runGooglePopup()
+    await runGooglePopup(true)
   }
 
   const signOut = async () => {
