@@ -5,8 +5,14 @@ import type {
   Schedule,
   Consultation,
   ConsultationMessage,
+  Store,
+  Membership,
+  Broadcast,
+  Ranking,
+  StoreCastSales,
 } from '../types'
 import type { ProfileSettings, MonthlyStats } from './sales'
+import type { MyMembership } from './stores'
 
 // ============================================================================
 // デモモード（Google認証・Firestore不要のUIテスト用）
@@ -235,5 +241,41 @@ export const demoConsultations: Consultation[] = [
     ],
     createdAt: ts(now - 30 * 60000),
     updatedAt: ts(now - 19 * 60000),
+  },
+]
+
+// ---- 店舗（お知らせ・店舗コンソール用） ----
+const DEMO_STORE = 'demo_store'
+export const demoMemberships: MyMembership[] = [
+  { storeId: DEMO_STORE, role: 'manager', displayName: 'れいな' },
+]
+export const demoStore: Store = { id: DEMO_STORE, name: 'CLUB LUXE 本店', createdBy: DEMO_UID }
+export const demoStoreMembers: Membership[] = [
+  { uid: DEMO_UID, role: 'manager', displayName: 'れいな', joinedAt: ts(now - 120 * day), active: true },
+  { uid: 'm_mio', role: 'cast', displayName: 'みお', joinedAt: ts(now - 80 * day), active: true },
+  { uid: 'm_anna', role: 'cast', displayName: 'あんな', joinedAt: ts(now - 60 * day), active: true },
+  { uid: 'm_sato', role: 'kurofuku', displayName: '佐藤', joinedAt: ts(now - 150 * day), active: true },
+]
+export const demoBroadcasts: Broadcast[] = [
+  { id: 'b1', type: 'event', title: 'サマーイベント「白ドレスDAY」', body: 'ドレスコード白。シャンパンバック20%。', audience: 'all', eventDate: ts(now + 8 * day), createdBy: DEMO_UID, createdAt: ts(now - 2 * day) },
+  { id: 'b2', type: 'birthdayQuota', title: 'バースデーノルマ確認', body: '9月バースデー組は同伴3本以上を目標に。', audience: 'all', quota: 1500000, createdBy: DEMO_UID, createdAt: ts(now - 5 * day) },
+  { id: 'b3', type: 'shift', title: '来週シフト提出〆切', body: '金曜21時までにコンソールから提出してください。', audience: 'all', createdBy: DEMO_UID, createdAt: ts(now - 1 * day) },
+]
+export const demoStoreSales: StoreCastSales[] = [
+  { uid: DEMO_UID, figures: { totalSales: 2450000, shimeiCount: 12, dohanCount: 6, joCount: 9 }, confirmedBy: DEMO_UID, confirmedAt: ts(now - day) },
+  { uid: 'm_mio', figures: { totalSales: 1980000, shimeiCount: 10, dohanCount: 4, joCount: 7 }, confirmedBy: DEMO_UID, confirmedAt: ts(now - day) },
+]
+export const demoRankings: Ranking[] = [
+  {
+    id: 'demo_store_month_sales',
+    metric: 'sales',
+    period: 'month',
+    visibility: 'public',
+    computedAt: ts(now - day),
+    entries: [
+      { castUid: DEMO_UID, displayName: 'れいな', rank: 1, value: 2450000 },
+      { castUid: 'm_mio', displayName: 'みお', rank: 2, value: 1980000 },
+      { castUid: 'm_anna', displayName: 'あんな', rank: 3, value: 1520000 },
+    ],
   },
 ]

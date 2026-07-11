@@ -16,6 +16,15 @@ import {
   type QueryDocumentSnapshot,
 } from 'firebase/firestore'
 import { auth, db } from './firebase'
+import {
+  demoActive,
+  demoMemberships,
+  demoStore,
+  demoStoreMembers,
+  demoBroadcasts,
+  demoStoreSales,
+  demoRankings,
+} from './demo'
 import type {
   Broadcast,
   BroadcastType,
@@ -47,6 +56,11 @@ export function useMyMemberships(): { memberships: MyMembership[]; loading: bool
   const [memberships, setMemberships] = useState<MyMembership[]>([])
   const [loading, setLoading] = useState(true)
   useEffect(() => {
+    if (demoActive()) {
+      setMemberships(demoMemberships)
+      setLoading(false)
+      return
+    }
     const u = auth.currentUser
     if (!u) {
       setLoading(false)
@@ -72,6 +86,7 @@ export function useMyMemberships(): { memberships: MyMembership[]; loading: bool
 
 // ---- 店舗（F-15） ----
 export async function createStore(name: string, displayName: string): Promise<string> {
+  if (demoActive()) return 'demo_store'
   const { uid } = requireUser()
   const ref = await addDoc(collection(db, 'stores'), {
     name,
@@ -92,6 +107,10 @@ export async function createStore(name: string, displayName: string): Promise<st
 export function useStore(storeId: string | undefined): Store | null {
   const [store, setStore] = useState<Store | null>(null)
   useEffect(() => {
+    if (demoActive()) {
+      setStore(demoStore)
+      return
+    }
     if (!storeId) return
     return onSnapshot(doc(db, 'stores', storeId), (snap) =>
       setStore(snap.exists() ? ({ id: snap.id, ...(snap.data() as Omit<Store, 'id'>) }) : null),
@@ -103,6 +122,7 @@ export function useStore(storeId: string | undefined): Store | null {
 // ---- 招待・参加（F-15） ----
 /** 招待コードを発行（storeId を含めることで参加時の検索を不要にする） */
 export async function createInvite(storeId: string, role: Exclude<StoreRole, 'manager'>): Promise<string> {
+  if (demoActive()) return 'demo_store.DEMO01'
   const { uid } = requireUser()
   const rand = Array.from({ length: 6 }, (_, i) => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[(storeId.charCodeAt(i % storeId.length) + i * 7) % 31]).join('')
   const code = `${storeId}.${rand}`
@@ -116,6 +136,7 @@ export async function createInvite(storeId: string, role: Exclude<StoreRole, 'ma
 }
 
 export async function joinByCode(code: string, displayName: string): Promise<string> {
+  if (demoActive()) return 'demo_store'
   const { uid } = requireUser()
   const storeId = code.split('.')[0]
   if (!storeId) throw new Error('招待コードが不正です')
@@ -136,6 +157,10 @@ export async function joinByCode(code: string, displayName: string): Promise<str
 export function useMemberships(storeId: string | undefined): Membership[] {
   const [list, setList] = useState<Membership[]>([])
   useEffect(() => {
+    if (demoActive()) {
+      setList(demoStoreMembers)
+      return
+    }
     if (!storeId) return
     return onSnapshot(collection(db, 'stores', storeId, 'memberships'), (snap) =>
       setList(snap.docs.map((d) => d.data() as Membership)),
@@ -156,6 +181,7 @@ export interface NewBroadcast {
 }
 
 export async function createBroadcast(storeId: string, b: NewBroadcast): Promise<string> {
+  if (demoActive()) return 'demo_bc'
   const { uid } = requireUser()
   const ref = await addDoc(collection(db, 'stores', storeId, 'broadcasts'), {
     ...b,
@@ -172,6 +198,10 @@ function mapBroadcast(snap: QueryDocumentSnapshot<DocumentData>): Broadcast {
 export function useBroadcasts(storeId: string | undefined): Broadcast[] {
   const [list, setList] = useState<Broadcast[]>([])
   useEffect(() => {
+    if (demoActive()) {
+      setList(demoBroadcasts)
+      return
+    }
     if (!storeId) return
     const q = query(collection(db, 'stores', storeId, 'broadcasts'), orderBy('createdAt', 'desc'))
     return onSnapshot(q, (snap) => setList(snap.docs.map(mapBroadcast)))
@@ -180,6 +210,7 @@ export function useBroadcasts(storeId: string | undefined): Broadcast[] {
 }
 
 export async function markBroadcastRead(storeId: string, bid: string): Promise<void> {
+  if (demoActive()) return
   const { uid } = requireUser()
   await setDoc(doc(db, 'stores', storeId, 'broadcasts', bid, 'reads', uid), {
     uid,
@@ -194,6 +225,7 @@ export async function confirmCastSales(
   castUid: string,
   figures: SalesFigures,
 ): Promise<void> {
+  if (demoActive()) return
   const { uid } = requireUser()
   await setDoc(
     doc(db, 'stores', storeId, 'sales', month, 'casts', castUid),
@@ -205,6 +237,10 @@ export async function confirmCastSales(
 export function useStoreMonthSales(storeId: string | undefined, month: string): StoreCastSales[] {
   const [list, setList] = useState<StoreCastSales[]>([])
   useEffect(() => {
+    if (demoActive()) {
+      setList(demoStoreSales)
+      return
+    }
     if (!storeId) return
     return onSnapshot(collection(db, 'stores', storeId, 'sales', month, 'casts'), (snap) =>
       setList(snap.docs.map((d) => d.data() as StoreCastSales)),
@@ -224,6 +260,7 @@ export async function publishRanking(
     entries: Ranking['entries']
   },
 ): Promise<void> {
+  if (demoActive()) return
   const id = `${storeId}_${input.period}_${input.metric}`
   await setDoc(doc(db, 'stores', storeId, 'rankings', id), {
     ...input,
@@ -234,6 +271,10 @@ export async function publishRanking(
 export function useRankings(storeId: string | undefined): Ranking[] {
   const [list, setList] = useState<Ranking[]>([])
   useEffect(() => {
+    if (demoActive()) {
+      setList(demoRankings)
+      return
+    }
     if (!storeId) return
     return onSnapshot(collection(db, 'stores', storeId, 'rankings'), (snap) =>
       setList(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Ranking, 'id'>) }))),
