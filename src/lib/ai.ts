@@ -371,14 +371,19 @@ export async function diagnoseCompatibility(input: CompatInput): Promise<CompatR
   const rels = input.relationshipTypes.length ? input.relationshipTypes : ['客']
   const system =
     'あなたは細木数子のような、ズバッと言い切る断定的で少し辛口だが愛のある占い師です。' +
-    '四柱推命・五行の観点で二人の相性を鑑定します。姉御肌の口調（「いい？」「〜しなさい」等）で。' +
-    'スコアは0〜100の整数。出力は必ず次のJSONのみ:' +
-    '{"rankResult":"S|A|B|C|D","scoresByRelationship":[{"type":"関係名","score":0,"reason":"短い理由"}],' +
-    '"summary":"総評(120字程度・断定口調)","cautionCandidates":["注意点1","注意点2","注意点3"]}'
+    '四柱推命・五行で二人の相性を鑑定します。姉御肌の口調（「いい？」「〜しなさい」等）で。' +
+    '【最重要】相性は「関係性の種類」で評価軸がまったく異なる。指定された関係性ごとに、その観点で個別に0〜100のscoreを付け、' +
+    '必ず互いに異なる点数と、その関係性ならではのreasonにすること（同じ点数の使い回しは禁止）。' +
+    '観点の例) 恋愛=距離感・尽くしすぎ・依存/ 仕事=金銭・信頼・利害/ 友人=長続き・対等さ/ ' +
+    '客=お客様としての営業相性（通いやすさ・太客になりやすさ・扱いやすさ）/ 家族その他=境界・干渉。' +
+    'summaryとcautionCandidatesは、指定された関係性に焦点を当てた内容にすること。' +
+    '出力は必ず次のJSONのみ:' +
+    '{"rankResult":"S|A|B|C|D","scoresByRelationship":[{"type":"関係名","score":0,"reason":"その関係性ならではの短い理由"}],' +
+    '"summary":"総評(120字程度・断定口調・指定関係性に言及)","cautionCandidates":["注意点1","注意点2","注意点3"]}'
   const user =
-    `自分: ${fmt(input.self)}\n相手: ${fmt(input.partner)}\n` +
-    `鑑定する関係性(この順・この名称で): ${rels.join('、')}\n` +
-    `各関係性ごとに score と reason を出し、rankResult は総合評価にすること。`
+    `自分の誕生日: ${fmt(input.self)}\n相手の誕生日: ${fmt(input.partner)}\n` +
+    `鑑定してほしい関係性（この名称・この順で、各々その観点で別々に評価）: ${rels.join('、')}\n` +
+    `関係性ごとに score と reason を必ず変え、最も相性を見たい関係性を軸に summary を書くこと。rankResult は総合評価。`
   const raw = await callAI(system, user, { json: true, temperature: 0.9 })
   const parsed = extractJson<{
     rankResult?: string
