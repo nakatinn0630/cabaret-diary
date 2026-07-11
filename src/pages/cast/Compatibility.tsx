@@ -4,7 +4,7 @@ import { useCustomers } from '../../lib/customers'
 import { diagnoseCompatibility, type CompatResult } from '../../lib/ai'
 import { saveDiagnosis, setPinnedCautions } from '../../lib/compatibility'
 import { useProfileSettings, saveProfileSettings } from '../../lib/sales'
-import { Card, SectionTitle, Header, Main, Field, MultiPill, inputCls, goldTx, subTx, useToast } from '../../components/ui'
+import { Card, SectionTitle, Header, Main, Field, MultiPill, DateSelect, goldTx, subTx, useToast } from '../../components/ui'
 import type { RelationshipType } from '../../types'
 
 const RELATIONSHIPS: RelationshipType[] = ['友人', '仕事', '恋愛', '客', '家族その他']
@@ -17,6 +17,7 @@ export default function Compatibility() {
   const cid = params.get('cid') ?? ''
   const { customers } = useCustomers()
   const customer = customers.find((c) => c.id === cid)
+  const nowYear = new Date().getFullYear()
 
   const partnerBirthdayDefault = useMemo(() => {
     const ms = customer?.fortune?.birthday?.toMillis?.()
@@ -105,14 +106,12 @@ export default function Compatibility() {
       <Main>
         {customer && <p className={`text-[13px] ${subTx}`}>お相手: {customer.nickname}</p>}
 
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="自分の誕生日">
-            <input type="date" value={selfBday} onChange={(e) => setSelfBday(e.target.value)} className={inputCls} />
-          </Field>
-          <Field label="相手の誕生日（任意）">
-            <input type="date" value={partnerBday} onChange={(e) => setPartnerBday(e.target.value)} className={inputCls} />
-          </Field>
-        </div>
+        <Field label="自分の誕生日">
+          <DateSelect value={selfBday} onChange={setSelfBday} fromYear={nowYear - 90} toYear={nowYear} />
+        </Field>
+        <Field label="相手の誕生日（任意）">
+          <DateSelect value={partnerBday} onChange={setPartnerBday} fromYear={nowYear - 90} toYear={nowYear} />
+        </Field>
 
         <Field label="関係性（複数選択）">
           <MultiPill options={REL_OPTIONS} values={rels} onToggle={toggleRel} />
@@ -131,6 +130,9 @@ export default function Compatibility() {
 
         {result && (
           <>
+            <p className={`text-[11px] leading-relaxed ${subTx}`}>
+              ※ AIによる鑑定です。結果はあくまで参考としてお楽しみください。
+            </p>
             {/* 相性ランク（明朝の大文字・グラデーション） */}
             <Card className="p-5 text-center space-y-1">
               <p className={`text-[11px] tracking-[0.2em] ${subTx}`}>相性ランク</p>

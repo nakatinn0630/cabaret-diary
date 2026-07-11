@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Timestamp } from 'firebase/firestore'
 import { addVisit } from '../lib/customers'
-import { Field, Seg, Toggle, inputCls, subTx, useToast } from './ui'
+import { Field, Seg, Toggle, DateSelect, inputCls, subTx, useToast } from './ui'
 import type { Bottle, PaymentMethod } from '../types'
 
 const PAY_OPTIONS: { v: PaymentMethod; label: string }[] = [
@@ -14,6 +14,7 @@ const PAY_OPTIONS: { v: PaymentMethod; label: string }[] = [
 export function VisitForm({ cid, onClose }: { cid: string; onClose: () => void }) {
   const toast = useToast()
   const today = new Date().toISOString().slice(0, 10)
+  const nowYear = new Date().getFullYear()
   const [date, setDate] = useState(today)
   const [amount, setAmount] = useState(0)
   const [durationMin, setDurationMin] = useState('')
@@ -100,7 +101,7 @@ export function VisitForm({ cid, onClose }: { cid: string; onClose: () => void }
         </div>
 
         <Field label="来店日">
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} />
+          <DateSelect value={date} onChange={setDate} fromYear={nowYear - 2} toYear={nowYear} />
         </Field>
         <Field label="滞在（分）">
           <input

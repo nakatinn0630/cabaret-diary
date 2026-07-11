@@ -12,7 +12,7 @@ import {
 } from '../../lib/schedules'
 import { ensureCabaageCalendar, upsertEvent } from '../../lib/gcal'
 import type { ScheduleType } from '../../types'
-import { Header, Main, Field, Seg, useToast, inputCls, subTx } from '../../components/ui'
+import { Header, Main, Field, Seg, DateSelect, useToast, inputCls, subTx } from '../../components/ui'
 
 const SCHED_ICON: Record<ScheduleType, string> = {
   shift: '🕘',
@@ -43,6 +43,7 @@ export default function ScheduleEdit() {
   const existing = useMemo(() => schedules.find((s) => s.id === sid), [schedules, sid])
 
   const now = new Date()
+  const nowYear = now.getFullYear()
   const [type, setType] = useState<ScheduleType>('shift')
   const [customerId, setCustomerId] = useState('')
   const [date, setDate] = useState(now.toISOString().slice(0, 10))
@@ -164,7 +165,7 @@ export default function ScheduleEdit() {
         )}
 
         <Field label="日付">
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} />
+          <DateSelect value={date} onChange={setDate} fromYear={nowYear - 1} toYear={nowYear + 2} />
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="開始">

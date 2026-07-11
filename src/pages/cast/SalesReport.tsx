@@ -11,7 +11,7 @@ import {
   useSalesRecord,
 } from '../../lib/sales'
 import { RankBadge, RANK_OPTIONS } from '../../components/RankBadge'
-import { Card, SectionTitle, Header, Main, Field, inputCls, goldTx, subTx, useToast } from '../../components/ui'
+import { Card, SectionTitle, Header, Main, Field, DateSelect, inputCls, goldTx, subTx, useToast } from '../../components/ui'
 import { yen } from '../../lib/format'
 import type { CustomerRank } from '../../types'
 
@@ -238,7 +238,12 @@ export default function SalesReport() {
           >
             <h2 className="font-serif text-[17px] font-bold">目標・保証の設定</h2>
             <Field label="保証終了日">
-              <input type="date" value={guarantee} onChange={(e) => setGuarantee(e.target.value)} className={inputCls} />
+              <DateSelect
+                value={guarantee}
+                onChange={setGuarantee}
+                fromYear={new Date().getFullYear()}
+                toYear={new Date().getFullYear() + 2}
+              />
             </Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="目標指名本数">

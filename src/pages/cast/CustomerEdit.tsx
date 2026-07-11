@@ -4,7 +4,7 @@ import { createCustomer, updateCustomer, useCustomer, type NewCustomer } from '.
 import { useCrypto } from '../../contexts/CryptoContext'
 import { decField } from '../../lib/crypto'
 import { RANK_OPTIONS } from '../../components/RankBadge'
-import { Header, Main, Field, Seg, MultiPill, inputCls, subTx, useToast } from '../../components/ui'
+import { Header, Main, Field, Seg, MultiPill, DateSelect, inputCls, subTx, useToast } from '../../components/ui'
 import type { CustomerRank, Fatigue, FitLevel, PaymentMethod } from '../../types'
 
 const FIT_LEVELS: FitLevel[] = ['得意', '普通', '苦手']
@@ -23,6 +23,7 @@ export default function CustomerEdit() {
   const toast = useToast()
   const { customer } = useCustomer(cid)
   const { unlocked, hasPassphrase } = useCrypto()
+  const nowYear = new Date().getFullYear()
 
   const [form, setForm] = useState<NewCustomer>({ nickname: '', paymentMethods: ['cash'], tags: [] })
   const [realNameInput, setRealNameInput] = useState('')
@@ -162,26 +163,24 @@ export default function CustomerEdit() {
         <Field label="LINE名称">
           <input value={form.lineName ?? ''} onChange={(e) => set('lineName', e.target.value)} className={inputCls} placeholder="LINEの表示名" />
         </Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="電話番号">
-            <input
-              type="tel"
-              inputMode="tel"
-              value={form.phone ?? ''}
-              onChange={(e) => set('phone', e.target.value)}
-              className={inputCls}
-              placeholder="090-0000-0000"
-            />
-          </Field>
-          <Field label="誕生日">
-            <input
-              type="date"
-              value={form.birthday ?? ''}
-              onChange={(e) => set('birthday', e.target.value)}
-              className={inputCls}
-            />
-          </Field>
-        </div>
+        <Field label="電話番号">
+          <input
+            type="tel"
+            inputMode="tel"
+            value={form.phone ?? ''}
+            onChange={(e) => set('phone', e.target.value)}
+            className={inputCls}
+            placeholder="090-0000-0000"
+          />
+        </Field>
+        <Field label="誕生日">
+          <DateSelect
+            value={form.birthday ?? ''}
+            onChange={(v) => set('birthday', v)}
+            fromYear={nowYear - 90}
+            toYear={nowYear}
+          />
+        </Field>
         {unlocked ? (
           <Field label="本名（暗号化して保存）">
             <input

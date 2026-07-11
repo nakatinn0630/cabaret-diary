@@ -22,6 +22,86 @@ export const glass =
 export const inputCls =
   'w-full rounded-xl border px-4 py-3 text-[15px] bg-white/70 dark:bg-white/[0.07] border-night/10 dark:border-white/15 outline-none focus:border-gold placeholder:text-night/30 dark:placeholder:text-white/30'
 
+/* --- 日付ドロップダウン（年/月/日）。value は 'YYYY-MM-DD' か ''（未選択） --- */
+const selectCls =
+  'rounded-xl border px-2 py-3 text-[15px] bg-white/70 dark:bg-white/[0.07] border-night/10 dark:border-white/15 outline-none focus:border-gold appearance-none text-center'
+export function DateSelect({
+  value,
+  onChange,
+  fromYear,
+  toYear,
+}: {
+  value: string
+  onChange: (v: string) => void
+  fromYear: number
+  toYear: number
+}) {
+  const parts = value ? value.split('-') : []
+  const y = parts[0] ? Number(parts[0]) : undefined
+  const m = parts[1] ? Number(parts[1]) : undefined
+  const d = parts[2] ? Number(parts[2]) : undefined
+
+  const years: number[] = []
+  for (let yr = toYear; yr >= fromYear; yr--) years.push(yr)
+  const months = Array.from({ length: 12 }, (_, i) => i + 1)
+  const daysInMonth = y && m ? new Date(y, m, 0).getDate() : 31
+  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1)
+
+  const emit = (ny?: number, nm?: number, nd?: number) => {
+    if (ny && nm && nd) {
+      const maxD = new Date(ny, nm, 0).getDate()
+      const dd = Math.min(nd, maxD)
+      onChange(`${ny}-${String(nm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`)
+    } else {
+      onChange('')
+    }
+  }
+
+  return (
+    <div className="flex gap-2">
+      <select
+        aria-label="年"
+        className={`${selectCls} flex-1`}
+        value={y ?? ''}
+        onChange={(e) => emit(e.target.value ? Number(e.target.value) : undefined, m, d)}
+      >
+        <option value="">年</option>
+        {years.map((yr) => (
+          <option key={yr} value={yr}>
+            {yr}
+          </option>
+        ))}
+      </select>
+      <select
+        aria-label="月"
+        className={`${selectCls} w-[74px]`}
+        value={m ?? ''}
+        onChange={(e) => emit(y, e.target.value ? Number(e.target.value) : undefined, d)}
+      >
+        <option value="">月</option>
+        {months.map((mo) => (
+          <option key={mo} value={mo}>
+            {mo}
+          </option>
+        ))}
+      </select>
+      <select
+        aria-label="日"
+        className={`${selectCls} w-[74px]`}
+        value={d ?? ''}
+        onChange={(e) => emit(y, m, e.target.value ? Number(e.target.value) : undefined)}
+      >
+        <option value="">日</option>
+        {days.map((dy) => (
+          <option key={dy} value={dy}>
+            {dy}
+          </option>
+        ))}
+      </select>
+    </div>
+  )
+}
+
 /* --- カード --- */
 export function Card({
   className = '',
