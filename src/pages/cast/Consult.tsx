@@ -68,8 +68,8 @@ export default function Consult() {
         category: res.category,
         escalatedTo: res.escalate,
       })
-    } catch {
-      /* best-effort */
+    } catch (e) {
+      toast(e instanceof Error ? e.message : '相談AIに接続できませんでした。時間をおいて再度お試しください。')
     } finally {
       setBusy(false)
     }

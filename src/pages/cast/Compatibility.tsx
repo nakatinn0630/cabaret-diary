@@ -39,6 +39,7 @@ export default function Compatibility() {
   const [pinned, setPinned] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   // 保存先顧客（cidクエリを初期選択として保持しつつ切替可能）
   const [saveTo, setSaveTo] = useState(cid)
 
@@ -55,6 +56,7 @@ export default function Compatibility() {
     if (rels.length === 0) return
     setBusy(true)
     setSaved(false)
+    setError(null)
     // 自分の誕生日を保存（次回以降は自動入力）
     if (selfBday && selfBday !== settings.birthday) {
       void saveProfileSettings({ birthday: selfBday })
@@ -68,6 +70,8 @@ export default function Compatibility() {
       })
       setResult(res)
       setPinned([])
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'AIによる占いに失敗しました。時間をおいて再度お試しください。')
     } finally {
       setBusy(false)
     }
@@ -122,6 +126,8 @@ export default function Compatibility() {
         >
           {busy ? '占い中…' : '診断する ✨'}
         </button>
+
+        {error && <p className="text-[13px] text-rose font-semibold">{error}</p>}
 
         {result && (
           <>
@@ -202,11 +208,6 @@ export default function Compatibility() {
               {saved ? '保存しました ✓' : '顧客に保存する'}
             </button>
 
-            {result.source === 'local' && (
-              <p className={`text-[11px] ${subTx}`}>
-                ※ AIプロキシ未設定のため簡易診断です（本番は占いエンジン/Claude 経由）。
-              </p>
-            )}
           </>
         )}
       </Main>
