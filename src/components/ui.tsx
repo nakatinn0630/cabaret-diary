@@ -25,6 +25,15 @@ export const inputCls =
 /* --- 日付ドロップダウン（年/月/日）。value は 'YYYY-MM-DD' か ''（未選択） --- */
 const selectCls =
   'rounded-xl border px-2 py-3 text-[15px] bg-white/70 dark:bg-white/[0.07] border-night/10 dark:border-white/15 outline-none focus:border-gold appearance-none text-center'
+type YMD = { y?: number; m?: number; d?: number }
+const parseYMD = (v: string): YMD => {
+  const p = v ? v.split('-') : []
+  return {
+    y: p[0] ? Number(p[0]) : undefined,
+    m: p[1] ? Number(p[1]) : undefined,
+    d: p[2] ? Number(p[2]) : undefined,
+  }
+}
 export function DateSelect({
   value,
   onChange,
@@ -36,22 +45,25 @@ export function DateSelect({
   fromYear: number
   toYear: number
 }) {
-  const parts = value ? value.split('-') : []
-  const y = parts[0] ? Number(parts[0]) : undefined
-  const m = parts[1] ? Number(parts[1]) : undefined
-  const d = parts[2] ? Number(parts[2]) : undefined
+  // 内部状態で部分選択（年だけ/年月だけ）を保持する。全部揃うまで消えないようにする。
+  const [ymd, setYmd] = useState<YMD>(() => parseYMD(value))
+  // 外部から完全な日付が入ったとき（プリフィル等）だけ取り込む。部分選択中の '' では上書きしない。
+  useEffect(() => {
+    if (value) setYmd(parseYMD(value))
+  }, [value])
 
   const years: number[] = []
   for (let yr = toYear; yr >= fromYear; yr--) years.push(yr)
   const months = Array.from({ length: 12 }, (_, i) => i + 1)
-  const daysInMonth = y && m ? new Date(y, m, 0).getDate() : 31
+  const daysInMonth = ymd.y && ymd.m ? new Date(ymd.y, ymd.m, 0).getDate() : 31
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1)
 
-  const emit = (ny?: number, nm?: number, nd?: number) => {
-    if (ny && nm && nd) {
-      const maxD = new Date(ny, nm, 0).getDate()
-      const dd = Math.min(nd, maxD)
-      onChange(`${ny}-${String(nm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`)
+  const update = (next: YMD) => {
+    setYmd(next)
+    if (next.y && next.m && next.d) {
+      const maxD = new Date(next.y, next.m, 0).getDate()
+      const dd = Math.min(next.d, maxD)
+      onChange(`${next.y}-${String(next.m).padStart(2, '0')}-${String(dd).padStart(2, '0')}`)
     } else {
       onChange('')
     }
@@ -62,8 +74,8 @@ export function DateSelect({
       <select
         aria-label="年"
         className={`${selectCls} flex-1`}
-        value={y ?? ''}
-        onChange={(e) => emit(e.target.value ? Number(e.target.value) : undefined, m, d)}
+        value={ymd.y ?? ''}
+        onChange={(e) => update({ ...ymd, y: e.target.value ? Number(e.target.value) : undefined })}
       >
         <option value="">年</option>
         {years.map((yr) => (
@@ -75,8 +87,8 @@ export function DateSelect({
       <select
         aria-label="月"
         className={`${selectCls} w-[74px]`}
-        value={m ?? ''}
-        onChange={(e) => emit(y, e.target.value ? Number(e.target.value) : undefined, d)}
+        value={ymd.m ?? ''}
+        onChange={(e) => update({ ...ymd, m: e.target.value ? Number(e.target.value) : undefined })}
       >
         <option value="">月</option>
         {months.map((mo) => (
@@ -88,8 +100,8 @@ export function DateSelect({
       <select
         aria-label="日"
         className={`${selectCls} w-[74px]`}
-        value={d ?? ''}
-        onChange={(e) => emit(y, m, e.target.value ? Number(e.target.value) : undefined)}
+        value={ymd.d ?? ''}
+        onChange={(e) => update({ ...ymd, d: e.target.value ? Number(e.target.value) : undefined })}
       >
         <option value="">日</option>
         {days.map((dy) => (
