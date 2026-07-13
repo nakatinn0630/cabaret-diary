@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useMyMemberships, createStore, joinByCode, useStore } from '../../lib/stores'
 import type { MyMembership } from '../../lib/stores'
+import { showsCast } from '../../lib/surface'
 import {
   Header,
   Main,
@@ -70,9 +71,12 @@ export default function ConsoleHome() {
         title="店舗コンソール"
         right={
           <div className={`flex items-center gap-3 text-[12px] ${subTx}`}>
-            <Link to="/" className="text-gold font-semibold">
-              キャストアプリ →
-            </Link>
+            {/* キャストアプリ導線はキャストサーフェス同居時のみ（完全分離時は非表示） */}
+            {showsCast() && (
+              <Link to="/" className="text-gold font-semibold">
+                キャストアプリ →
+              </Link>
+            )}
             <button onClick={() => void signOut()}>ログアウト</button>
           </div>
         }

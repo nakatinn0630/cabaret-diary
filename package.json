@@ -1,12 +1,14 @@
 {
-  "name": "cabaage-app",
+  "name": "cabaret-diary-app",
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "キャバ帳 - キャスト向け顧客・スケジュール管理 PWA + 店舗コンソール",
+  "description": "キャバ帳 / Cabaret Diary - キャスト向け顧客・スケジュール管理 PWA + 店舗コンソール",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:cast": "tsc -b && VITE_SURFACE=cast vite build --outDir dist-cast",
+    "build:store": "tsc -b && VITE_SURFACE=store vite build --outDir dist-store",
     "preview": "vite preview",
     "lint": "eslint .",
     "typecheck": "tsc -b --noEmit"

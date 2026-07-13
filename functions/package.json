@@ -1,5 +1,5 @@
 {
-  "name": "cabaage-functions",
+  "name": "cabaret-diary-functions",
   "description": "キャバ帳 Cloud Functions (ai-proxy, risk-recalc)",
   "private": true,
   "engines": {

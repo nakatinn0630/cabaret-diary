@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from './contexts/AuthContext'
 import { enableDemo, disableDemo, demoActive } from './lib/demo'
+import { showsCast, showsStore } from './lib/surface'
 import LoginPage from './pages/LoginPage'
 import CastLayout from './pages/cast/CastLayout'
 import CastHome from './pages/cast/CastHome'
@@ -60,56 +61,66 @@ function DemoBadge() {
 }
 
 export default function App() {
+  // D-5: キャスト／店舗の完全分離。分離デプロイ時は VITE_SURFACE でどちらか一方のみ露出する。
+  const cast = showsCast()
+  const store = showsStore()
+  const fallbackTo = cast ? '/' : '/console'
   return (
     <>
       <DemoBadge />
       <Routes>
         <Route path="/demo" element={<DemoEntry />} />
-      <Route path="/login" element={<LoginPage />} />
+        <Route path="/login" element={<LoginPage />} />
 
-      {/* キャストアプリ（個人領域） */}
-      <Route
-        element={
-          <RequireAuth>
-            <CastLayout />
-          </RequireAuth>
-        }
-      >
-        <Route path="/" element={<CastHome />} />
-        <Route path="/customers" element={<CustomerList />} />
-        <Route path="/customers/new" element={<CustomerEdit />} />
-        <Route path="/customers/:cid" element={<CustomerDetail />} />
-        <Route path="/customers/:cid/edit" element={<CustomerEdit />} />
-        <Route path="/schedule" element={<Schedule />} />
-        <Route path="/schedule/new" element={<ScheduleEdit />} />
-        <Route path="/schedule/:sid/edit" element={<ScheduleEdit />} />
-        <Route path="/reply" element={<ReplyAssist />} />
-        <Route path="/consult" element={<Consult />} />
-        <Route path="/sales" element={<SalesReport />} />
-        <Route path="/compat" element={<Compatibility />} />
-        <Route path="/notices" element={<Notices />} />
-        <Route path="/menu" element={<Menu />} />
-      </Route>
+        {/* キャストアプリ（個人領域）。店舗サーフェスでは露出しない。 */}
+        {cast && (
+          <Route
+            element={
+              <RequireAuth>
+                <CastLayout />
+              </RequireAuth>
+            }
+          >
+            <Route path="/" element={<CastHome />} />
+            <Route path="/customers" element={<CustomerList />} />
+            <Route path="/customers/new" element={<CustomerEdit />} />
+            <Route path="/customers/:cid" element={<CustomerDetail />} />
+            <Route path="/customers/:cid/edit" element={<CustomerEdit />} />
+            <Route path="/schedule" element={<Schedule />} />
+            <Route path="/schedule/new" element={<ScheduleEdit />} />
+            <Route path="/schedule/:sid/edit" element={<ScheduleEdit />} />
+            <Route path="/reply" element={<ReplyAssist />} />
+            <Route path="/consult" element={<Consult />} />
+            <Route path="/sales" element={<SalesReport />} />
+            <Route path="/compat" element={<Compatibility />} />
+            <Route path="/notices" element={<Notices />} />
+            <Route path="/menu" element={<Menu />} />
+          </Route>
+        )}
 
-      {/* 店舗コンソール（D-1: 別サーフェス。将来は別デプロイに分離予定） */}
-      <Route
-        path="/console"
-        element={
-          <RequireAuth>
-            <ConsoleHome />
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/console/:storeId"
-        element={
-          <RequireAuth>
-            <StoreConsole />
-          </RequireAuth>
-        }
-      />
+        {/* 店舗コンソール（D-1/D-5: 別サーフェス）。キャストサーフェスでは露出しない。 */}
+        {store && (
+          <Route
+            path="/console"
+            element={
+              <RequireAuth>
+                <ConsoleHome />
+              </RequireAuth>
+            }
+          />
+        )}
+        {store && (
+          <Route
+            path="/console/:storeId"
+            element={
+              <RequireAuth>
+                <StoreConsole />
+              </RequireAuth>
+            }
+          />
+        )}
 
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to={fallbackTo} replace />} />
       </Routes>
     </>
   )

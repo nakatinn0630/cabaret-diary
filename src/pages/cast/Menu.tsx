@@ -16,12 +16,15 @@ import {
   useToast,
 } from '../../components/ui'
 
+import { showsStore } from '../../lib/surface'
+
 const items: { icon: string; label: string; to: string }[] = [
   { icon: '📊', label: '売上レポート', to: '/sales' },
   { icon: '🤵', label: 'AI黒服「クロ」に相談', to: '/consult' },
   { icon: '🔮', label: '占い・相性診断', to: '/compat' },
   { icon: '🔔', label: 'お知らせ', to: '/notices' },
-  { icon: '🏢', label: '店舗コンソール', to: '/console' },
+  // 店舗コンソールは店舗サーフェスが同居する場合のみ露出（完全分離時は非表示）。
+  ...(showsStore() ? [{ icon: '🏢', label: '店舗コンソール', to: '/console' }] : []),
 ]
 
 // クロードデザインの MenuScreen を移植（源氏名の設定＋各機能導線＋ログアウト）
