@@ -229,13 +229,13 @@ export const demoConsultations: Consultation[] = [
   {
     id: 'dc_1',
     category: 'ストーカー',
-    escalatedTo: 'police',
+    escalatedTo: 'urgent',
     messages: [
-      cmsg('assistant', 'お疲れさまです。困りごとがあれば何でも聞かせてください。', 30),
+      cmsg('assistant', 'よう、お疲れ。困りごとがあるなら遠慮なく話しな。俺が聞くぞ。', 30),
       cmsg('user', '出待ちされてる気がして怖い…', 20),
       cmsg(
         'assistant',
-        'それは怖かったね、まず身の安全が最優先だよ。無理に一人で抱えないで。危険を感じたらすぐ110番。お店にも共有して送り迎えの対策を頼もう。',
+        'おい、それはやばいやつだ。よく相談してくれたな。これはAIの俺じゃ守れない――今すぐ担当の黒服か店に直接連絡しろ。送り迎えや対応はお店に頼め。一人で抱え込むな、いいな。',
         19,
       ),
     ],

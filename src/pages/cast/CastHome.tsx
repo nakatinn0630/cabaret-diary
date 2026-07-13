@@ -111,7 +111,7 @@ export default function CastHome() {
             <span className="text-[20px]" aria-hidden="true">
               🤵
             </span>
-            <p className="text-[13px] font-bold">黒服相談</p>
+            <p className="text-[13px] font-bold">AI黒服「クロ」</p>
             <p className={`text-[12px] ${subTx}`}>困りごとを相談</p>
           </Card>
         </div>

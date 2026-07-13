@@ -250,7 +250,8 @@ export async function generateSpecialContact(
 // F-08 黒服機能（相談AI）
 // ============================================================================
 export type ConsultCategory = '愚痴' | 'ストーカー' | '売掛詐欺' | 'メンタル'
-export type EscalationTarget = 'police' | 'store' | 'window'
+// AIは警察通報を判断・発信しない。危険・緊急('urgent')は人間の担当・店舗へ誘導する。
+export type EscalationTarget = 'urgent' | 'store' | 'window'
 
 export interface ConsultTurn {
   role: 'user' | 'assistant'
@@ -266,8 +267,9 @@ export interface ConsultResult {
 
 // エスカレーション判定は誤検知を避けるため常にローカルで決定的に行う（安全導線の一貫性のため）。
 function detectCategory(text: string): { category?: ConsultCategory; escalate?: EscalationTarget } {
-  if (/(ストーカー|つきまと|待ち伏せ|脅|怖い|尾行|合鍵|付きまと)/.test(text))
-    return { category: 'ストーカー', escalate: 'police' }
+  // 暴力・ストーカー等の危険兆候 → 'urgent'（AIは通報せず、人間の担当・店舗へ即連絡を促す）
+  if (/(ストーカー|つきまと|待ち伏せ|脅|怖い|尾行|合鍵|付きまと|殴|暴力|刃物|拉致|監禁|レイプ|死ね)/.test(text))
+    return { category: 'ストーカー', escalate: 'urgent' }
   if (/(売掛|詐欺|お金.*返|飛ばれ|持ち逃げ|未回収)/.test(text))
     return { category: '売掛詐欺', escalate: 'store' }
   if (/(死にたい|消えたい|しんどい|辛|眠れ|限界|うつ)/.test(text))
@@ -276,7 +278,7 @@ function detectCategory(text: string): { category?: ConsultCategory; escalate?: 
 }
 
 // 黒服相談は必ずAI(API)で応答を生成する。ローカル定型文は使わない。
-// ※ エスカレーション先(#9110/店/窓口)の判定だけは安全のため決定的に付与する。
+// ※ エスカレーション先(危険=担当/店へ即連絡・金銭=店・メンタル=休息/相談)の判定だけは安全のため決定的に付与する。
 export async function consultKurofuku(history: ConsultTurn[], latest: string): Promise<ConsultResult> {
   if (PROXY_URL) {
     const res = await fetch(`${PROXY_URL}/consult`, {
@@ -295,11 +297,17 @@ export async function consultKurofuku(history: ConsultTurn[], latest: string): P
 
   const { category, escalate } = detectCategory(latest)
   const system =
-    'あなたは夜職（キャバクラ/クラブ）で働く女性を支える、経験豊富で温かい「黒服（ボーイ/内勤）」の相談役です。' +
-    '相手の気持ちにまず寄り添い、否定せず、短めの日本語で安心できる返答をします。' +
-    '危険（ストーカー・つきまとい）が疑われるときは身の安全と #9110/110番・お店への共有を、' +
-    '金銭トラブルは証拠保全とお店/警察への相談を、メンタルの落ち込みは休息と専門窓口を、それぞれ自然に促します。' +
-    '説教くさくならず、味方であることが伝わるようにします。出力は本文のみ。'
+    'あなたは、都内一等地の高級店で20年勤め上げたエース級の黒服（ボーイ）「クロ」だ。' +
+    '数々の店で店長・マネージャーを歴任し、1000人以上のキャストの相談に乗ってきた。' +
+    '話し方は面倒見のいい兄貴分（「〜だぞ」「〜しな」「任せろ」「よく相談してくれたな」等）。' +
+    '直球だが相手を傷つけない温かさを持ち、綺麗事だけは言わない。相手は「お前」と呼んでいい。' +
+    '接客・客トラブル、売上、安全、メンタルの悩みに、実践的で具体的なアドバイスを返す。' +
+    '【安全の最重要ルール】暴力・ストーカー・脅迫・待ち伏せ・自傷念慮など「やばい」と感じたら、' +
+    '必ず冒頭で「これはAIの俺じゃ守れない。今すぐ担当の黒服か店に直接連絡しろ」と促すこと。' +
+    '※あなた（AI）は警察への通報・電話を指示・推奨・代行しない。通報するかの判断は人間（担当・店舗）に委ね、' +
+    'あなたは“人間の担当・店舗へ今すぐ繋ぐこと”だけを強く勧める。' +
+    '違法・反社会的行為・暴力・薬物・詐欺は絶対に助言しない。医療・法律の断定はせず、専門家や店へ繋ぐに留める。' +
+    '出力は本文のみ。'
   const convo = history
     .slice(-6)
     .map((t) => `${t.role === 'user' ? 'キャスト' : '黒服'}: ${maskPII(t.text)}`)

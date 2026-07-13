@@ -18,7 +18,7 @@ import {
 
 const items: { icon: string; label: string; to: string }[] = [
   { icon: '📊', label: '売上レポート', to: '/sales' },
-  { icon: '🤵', label: '黒服相談', to: '/consult' },
+  { icon: '🤵', label: 'AI黒服「クロ」に相談', to: '/consult' },
   { icon: '🔮', label: '占い・相性診断', to: '/compat' },
   { icon: '🔔', label: 'お知らせ', to: '/notices' },
   { icon: '🏢', label: '店舗コンソール', to: '/console' },

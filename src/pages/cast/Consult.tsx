@@ -11,29 +11,28 @@ import { consultKurofuku } from '../../lib/ai'
 import type { EscalationTarget } from '../../types'
 import { Header, useToast } from '../../components/ui'
 
-// 実データ(ConsultResult/Consultation)のエスカレーション先を、
-// モックの rose エスカレーションカード表示にマッピングする。
+// エスカレーション先の表示。AIは警察へ通報・電話しない。危険時は「人間の担当・店舗へ今すぐ連絡」へ誘導する。
 const ESCALATION: Record<
   EscalationTarget,
   { title: string; body: string; action: string; toast: string }
 > = {
-  police: {
-    title: '警察相談専用ダイヤル #9110',
-    body: 'つきまとい・待ち伏せは一人で抱えないで。危険を感じたらすぐ110番。お店にも共有して送り迎えの対策を頼もう。',
-    action: '#9110 に相談',
-    toast: '相談窓口を開きます（デモ）',
+  urgent: {
+    title: '⚠️ 今すぐ担当・お店に連絡を',
+    body: 'これは一人で抱えちゃダメなやつ。AIでは守れない。今すぐ担当の黒服かお店に直接連絡して、送り迎えや対応を頼んで。',
+    action: '担当・お店に連絡する',
+    toast: '担当・お店への連絡導線（デモ）',
   },
   store: {
-    title: '証拠を残して相談を',
-    body: 'やり取りのスクショや日時の記録を必ず保全して。その上でお店、必要なら警察への相談手順を一緒に整理しよう。',
-    action: '相談手順を見る',
-    toast: '相談窓口を開きます（デモ）',
+    title: 'お店に相談を',
+    body: 'お金のことは証拠が大事。やり取りのスクショや日時を残して、お店に相談しよう。一人で立て替えないで。',
+    action: 'お店に相談する',
+    toast: 'お店への相談導線（デモ）',
   },
   window: {
-    title: '公的な相談窓口',
-    body: 'つらい時は無理をしないで。専門の相談窓口も使えます。あなたの味方だよ。',
-    action: '相談窓口を見る',
-    toast: '相談窓口を開きます（デモ）',
+    title: '無理せず、頼っていい',
+    body: 'つらい時は無理をしないで。今日はちゃんと休もう。しんどさが続くなら、担当やお店、信頼できる人にも話してみて。',
+    action: '担当・お店に相談する',
+    toast: '相談導線（デモ）',
   },
 }
 
@@ -84,18 +83,23 @@ export default function Consult() {
       style={{ colorScheme: 'dark' }}
     >
       <Header
-        title="🤵 黒服相談"
+        title="🤵 AI黒服「クロ」"
         back
         onBack={() => navigate('/')}
         className="!bg-[#241242]/85 !border-white/10"
       />
 
+      {/* 常時表示の注意バナー（AI助言・危険時は人間の担当/店舗へ） */}
+      <div className="flex-shrink-0 px-4 py-2 bg-rose/20 border-b border-rose/30 text-[11px] leading-snug text-[#f7c8d6]">
+        ⚠️ これはAIによる助言です。<span className="font-bold">やばい・危険と感じたら、AIに頼らず今すぐ担当の黒服／お店に直接連絡してください。</span>
+      </div>
+
       <main className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 space-y-3">
         {messages.length === 0 && (
           <p className="mt-6 text-center text-[13px] leading-relaxed text-white/50">
-            誰にも言えない悩み、ここで話していいよ。
+            よう、俺がAI黒服の「クロ」だ。
             <br />
-            愚痴でも、トラブルでも、まず聞くからね。
+            接客も売上も、しんどい話も、まず聞くぞ。遠慮するな。
           </p>
         )}
 
@@ -133,7 +137,7 @@ export default function Consult() {
           onKeyDown={(e) => {
             if (e.key === 'Enter') void send()
           }}
-          placeholder="例：出待ちされて怖い / 売掛が…"
+          placeholder="クロに相談…（例：指名が減った / 出待ちが怖い）"
           aria-label="相談メッセージ"
           className="flex-1 rounded-full px-4 py-3 text-[14px] bg-white/10 border border-white/15 outline-none focus:border-gold placeholder:text-white/30"
         />
