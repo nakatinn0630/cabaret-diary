@@ -12,6 +12,7 @@ import {
 } from '../../lib/schedules'
 import { ensureCabaageCalendar, upsertEvent } from '../../lib/gcal'
 import { parseScheduleText } from '../../lib/lineParser'
+import { parseScheduleAI } from '../../lib/ai'
 import type { ScheduleType } from '../../types'
 import { Header, Main, Field, Seg, DateSelect, useToast, inputCls, subTx } from '../../components/ui'
 
@@ -56,26 +57,54 @@ export default function ScheduleEdit() {
   const [syncWarn, setSyncWarn] = useState<string | null>(null)
   const [pasteOpen, setPasteOpen] = useState(false)
   const [pasteText, setPasteText] = useState('')
+  const [importing, setImporting] = useState(false)
 
-  // LINE等から貼り付けた文章を解析して日付・時刻・メモに反映
-  const importFromPaste = () => {
-    const p = parseScheduleText(pasteText)
+  // LINE等から貼り付けた文章を解析して日付・時刻・お客様・メモに反映。
+  // まずAI（Gemini/Groq等）で構造化を試み、失敗時は正規表現にフォールバック。
+  const importFromPaste = async () => {
+    const text = pasteText.trim()
+    if (!text) return
+    setImporting(true)
+    let ai = null
+    try {
+      ai = await parseScheduleAI(text, customers.map((c) => c.nickname))
+    } catch {
+      ai = null
+    }
+    const fb = parseScheduleText(text)
+    const date = ai?.date ?? fb.date
+    const startTime = ai?.startTime ?? fb.startTime
+    const endTime = ai?.endTime ?? fb.endTime
     const got: string[] = []
-    if (p.date) {
-      setDate(p.date)
+    if (date) {
+      setDate(date)
       got.push('日付')
     }
-    if (p.startTime) {
-      setStartTime(p.startTime)
+    if (startTime) {
+      setStartTime(startTime)
       got.push('開始')
     }
-    if (p.endTime) {
-      setEndTime(p.endTime)
+    if (endTime) {
+      setEndTime(endTime)
       got.push('終了')
     }
-    setMemo(pasteText.trim())
+    // お客様のマッチング（AIが名前を返した場合）
+    if (ai?.customerName) {
+      const n = ai.customerName
+      const match = customers.find((c) => c.nickname === n || c.nickname.includes(n) || n.includes(c.nickname))
+      if (match) {
+        setCustomerId(match.id)
+        got.push('お客様')
+      }
+    }
+    setMemo(text)
+    setImporting(false)
     setPasteOpen(false)
-    toast(got.length ? `読み込みました（${got.join('・')}）✓` : '本文をメモに取り込みました（日付/時刻は手動調整を）')
+    toast(
+      got.length
+        ? `${ai ? 'AIで' : ''}読み込みました（${got.join('・')}）✓`
+        : '本文をメモに取り込みました（日付/時刻は手動調整を）',
+    )
   }
 
   useEffect(() => {
@@ -170,13 +199,15 @@ export default function ScheduleEdit() {
           </button>
         ) : (
           <div className="rounded-xl border border-gold/40 p-3 space-y-2">
-            <p className={`text-[12px] font-semibold ${subTx}`}>LINEの本文を貼り付け → 日付・時刻を自動で読み取ります</p>
+            <p className={`text-[12px] font-semibold ${subTx}`}>
+              LINEの本文を貼り付け → AIが日付・時刻・お客様を読み取ります（「明日」「来週火曜」等もOK）
+            </p>
             <textarea
               value={pasteText}
               onChange={(e) => setPasteText(e.target.value)}
               rows={3}
               className={inputCls}
-              placeholder="例：駒井さん・漣さんとセミナー 7/14(火)19:00-21:00@東京"
+              placeholder="例：明日19時から東京でタカさんと同伴。21時には出るね"
               autoFocus
             />
             <div className="flex gap-2">
@@ -189,11 +220,11 @@ export default function ScheduleEdit() {
               </button>
               <button
                 type="button"
-                onClick={importFromPaste}
-                disabled={!pasteText.trim()}
+                onClick={() => void importFromPaste()}
+                disabled={!pasteText.trim() || importing}
                 className="flex-[2] min-h-[40px] rounded-xl bg-gold text-night text-[14px] font-bold disabled:opacity-40"
               >
-                読み込む
+                {importing ? 'AI解析中…' : '読み込む'}
               </button>
             </div>
           </div>

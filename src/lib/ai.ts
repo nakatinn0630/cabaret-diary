@@ -247,6 +247,56 @@ export async function generateSpecialContact(
 }
 
 // ============================================================================
+// F-05c 予定のAI抽出（LINE等の自由文 → 構造化）
+// ============================================================================
+export interface AiParsedSchedule {
+  date?: string // YYYY-MM-DD
+  startTime?: string // HH:MM
+  endTime?: string // HH:MM
+  customerName?: string
+  title?: string
+}
+
+/** LINE等の本文をAIで予定に構造化。今日基準で相対日付も解決。未設定/失敗時は null（呼び出し側で正規表現にフォールバック）。 */
+export async function parseScheduleAI(text: string, knownCustomers: string[] = []): Promise<AiParsedSchedule | null> {
+  if (!useDirect) return null
+  const now = new Date()
+  const todayIso = now.toISOString().slice(0, 10)
+  const wd = ['日', '月', '火', '水', '木', '金', '土'][now.getDay()]
+  const system =
+    'あなたはLINEの文章から「予定（アポ）」を抽出する日本語アシスタントです。' +
+    `今日は ${todayIso}(${wd}曜) です。「今日/明日/明後日/来週の火曜」等の相対表現は今日を基準に実際の日付へ変換すること。` +
+    '深夜の 25時/26時 は翌日の 01:00/02:00 とみなし、date は開始日、時刻は24時間表記(01:00等)にする。' +
+    (knownCustomers.length
+      ? `既知の顧客名リスト: ${knownCustomers.join('、')}。本文に該当があれば customerName にこのリストの表記で入れる。`
+      : '') +
+    '出力は必ず次のJSONのみ（不明な項目は null）:' +
+    '{"date":"YYYY-MM-DD|null","startTime":"HH:MM|null","endTime":"HH:MM|null","customerName":"名前|null","title":"20字以内の件名"}'
+  let raw: string
+  try {
+    raw = await callAI(system, `本文:\n${maskPII(text)}`, { json: true, temperature: 0.1, maxTokens: 200 })
+  } catch {
+    return null
+  }
+  const p = extractJson<{ date?: string; startTime?: string; endTime?: string; customerName?: string; title?: string }>(raw)
+  if (!p) return null
+  const okDate = typeof p.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(p.date)
+  const timeOk = (t?: string) => typeof t === 'string' && /^\d{1,2}:\d{2}$/.test(t)
+  const pad2 = (t: string) => {
+    const [h, m] = t.split(':')
+    return `${h.padStart(2, '0')}:${m}`
+  }
+  const clean = (s?: string) => (s && s !== 'null' && s.trim() ? s.trim() : undefined)
+  return {
+    date: okDate ? p.date : undefined,
+    startTime: timeOk(p.startTime) ? pad2(p.startTime!) : undefined,
+    endTime: timeOk(p.endTime) ? pad2(p.endTime!) : undefined,
+    customerName: clean(p.customerName),
+    title: clean(p.title),
+  }
+}
+
+// ============================================================================
 // F-08 黒服機能（相談AI）
 // ============================================================================
 export type ConsultCategory = '愚痴' | 'ストーカー' | '売掛詐欺' | 'メンタル'
