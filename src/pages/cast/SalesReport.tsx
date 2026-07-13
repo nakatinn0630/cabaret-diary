@@ -4,11 +4,13 @@ import { Timestamp } from 'firebase/firestore'
 import { useCustomers } from '../../lib/customers'
 import {
   currentMonthKey,
+  monthEndMs,
   saveProfileSettings,
   saveShimeiCount,
   useMonthlyStats,
   useProfileSettings,
   useSalesRecord,
+  type TrialRace,
 } from '../../lib/sales'
 import { RankBadge, RANK_OPTIONS } from '../../components/RankBadge'
 import { Card, SectionTitle, Header, Main, Field, DateSelect, inputCls, goldTx, subTx, useToast } from '../../components/ui'
@@ -16,6 +18,8 @@ import { yen } from '../../lib/format'
 import type { CustomerRank } from '../../types'
 
 const DAY = 24 * 60 * 60 * 1000
+const newRaceId = () => 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
+const fmtVal = (n: number, unit?: string) => (!unit || unit === '円' ? yen(n) : `${n.toLocaleString()}${unit}`)
 
 // ランク別構成バーの配色（クロードデザイン由来）
 const RANK_COLOR: Record<CustomerRank, string> = {
@@ -40,6 +44,8 @@ export default function SalesReport() {
   const [targetShimei, setTargetShimei] = useState('')
   const [targetSales, setTargetSales] = useState('')
   const [shimeiInput, setShimeiInput] = useState('')
+  const [trialEnd, setTrialEnd] = useState('')
+  const [races, setRaces] = useState<TrialRace[]>([])
 
   const topSpenders = [...customers].sort((a, b) => b.totalSpent - a.totalSpent).slice(0, 5)
   // ランク別の売上構成（クロードデザインの積み上げバー）
@@ -62,6 +68,16 @@ export default function SalesReport() {
   const salesPct = targetSalesNum && targetSalesNum > 0 ? Math.min(100, (stats.totalSales / targetSalesNum) * 100) : 0
   const perDaySales = remainSales !== undefined && daysLeft && daysLeft > 0 ? Math.ceil(remainSales / daysLeft) : undefined
 
+  // 月の目標（月締めまでのカウントダウン）
+  const monthDaysLeft = Math.max(1, Math.ceil((monthEndMs() - Date.now()) / DAY))
+  const monthPerDay =
+    remainSales !== undefined && remainSales > 0 ? Math.ceil(remainSales / monthDaysLeft) : undefined
+
+  // 試用期間レース
+  const trialEndMs = settings.trialEndDate?.toMillis?.()
+  const trialDaysLeft = trialEndMs ? Math.max(0, Math.ceil((trialEndMs - Date.now()) / DAY)) : undefined
+  const trialRaces = settings.trialRaces ?? []
+
   // 指名リング
   const shimeiTarget = settings.targetShimei
   const ratio = shimeiTarget && shimeiTarget > 0 ? Math.min(1, shimeiCount / shimeiTarget) : 0
@@ -72,17 +88,28 @@ export default function SalesReport() {
     setTargetShimei(settings.targetShimei ? String(settings.targetShimei) : '')
     setTargetSales(settings.targetSales ? String(settings.targetSales) : '')
     setShimeiInput(String(shimeiCount))
+    setTrialEnd(trialEndMs ? new Date(trialEndMs).toISOString().slice(0, 10) : '')
+    setRaces((settings.trialRaces ?? []).map((r) => ({ ...r })))
     setEditing(true)
   }
+  const addRace = () => setRaces((rs) => [...rs, { id: newRaceId(), name: '', target: 0, current: 0, unit: '円' }])
+  const updateRace = (id: string, patch: Partial<TrialRace>) =>
+    setRaces((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)))
+  const removeRace = (id: string) => setRaces((rs) => rs.filter((r) => r.id !== id))
   const save = async () => {
+    const cleanRaces = races
+      .filter((r) => r.name.trim())
+      .map((r) => ({ ...r, name: r.name.trim(), target: Number(r.target) || 0, current: Number(r.current) || 0 }))
     await saveProfileSettings({
       guaranteeEndDate: guarantee ? Timestamp.fromDate(new Date(guarantee)) : undefined,
       targetShimei: targetShimei ? Number(targetShimei) : undefined,
       targetSales: targetSales ? Number(targetSales) : undefined,
+      trialEndDate: trialEnd ? Timestamp.fromDate(new Date(trialEnd)) : undefined,
+      trialRaces: cleanRaces,
     })
     await saveShimeiCount(month, Number(shimeiInput) || 0)
     setEditing(false)
-    toast('目標・保証を更新しました ✓')
+    toast('目標・レースを更新しました ✓')
   }
 
   return (
@@ -135,6 +162,77 @@ export default function SalesReport() {
             <p className={`text-[13px] ${subTx}`}>保証終了日・目標を設定するとカウントダウンを表示します</p>
           </Card>
         )}
+
+        {/* 今月の目標（月締めまでのカウントダウン） */}
+        {targetSalesNum !== undefined ? (
+          <Card className="p-4 space-y-1.5 !border-gold/40">
+            <div className="flex items-center justify-between">
+              <SectionTitle>🎯 今月の目標</SectionTitle>
+              <span className={`text-[11px] ${subTx}`}>月締めまで残り{monthDaysLeft}日</span>
+            </div>
+            <p className="text-[14px]">
+              {remainSales && remainSales > 0 ? (
+                <>達成まで <span className={`font-serif text-[22px] font-bold ${goldTx}`}>{yen(remainSales)}</span></>
+              ) : (
+                <span className="font-serif text-[18px] font-bold text-emerald-500">目標達成！おめでとう🎉</span>
+              )}
+            </p>
+            <div className="h-2 rounded-full bg-night/10 dark:bg-white/10">
+              <div className="h-full rounded-full bg-gradient-to-r from-gold to-rose" style={{ width: `${salesPct}%` }} />
+            </div>
+            <p className={`text-[12px] ${subTx}`}>
+              {yen(stats.totalSales)} / {yen(targetSalesNum)}（{Math.round(salesPct)}%）
+              {monthPerDay !== undefined && <> · 1日あたり {yen(monthPerDay)} ペース</>}
+            </p>
+          </Card>
+        ) : (
+          <Card onClick={openEdit} className="p-4">
+            <p className={`text-[13px] ${subTx}`}>🎯 今月の目標売上を設定すると、月締めまでのカウントダウンを表示します</p>
+          </Card>
+        )}
+
+        {/* 試用期間レース（看板レース・うちわレース等を自由設定） */}
+        <Card className="p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <SectionTitle>🏁 試用期間レース</SectionTitle>
+            {trialDaysLeft !== undefined && (
+              <span className={`text-[11px] ${trialDaysLeft <= 3 ? 'text-rose font-bold' : subTx}`}>
+                試用期間 残り{trialDaysLeft}日
+              </span>
+            )}
+          </div>
+          {trialRaces.length === 0 ? (
+            <button type="button" onClick={openEdit} className="text-left text-[13px] text-gold font-semibold">
+              ＋ 看板レース・うちわレースなどを追加する
+            </button>
+          ) : (
+            trialRaces.map((r) => {
+              const pct = r.target > 0 ? Math.min(100, (r.current / r.target) * 100) : 0
+              const remain = Math.max(0, r.target - r.current)
+              const perDay = trialDaysLeft && trialDaysLeft > 0 && remain > 0 ? Math.ceil(remain / trialDaysLeft) : undefined
+              return (
+                <div key={r.id} className="space-y-1">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-[13px] font-bold truncate">{r.name}</span>
+                    <span className={`text-[12px] font-serif font-bold ${goldTx}`}>
+                      {fmtVal(r.current, r.unit)} <span className={`text-[11px] font-sans ${subTx}`}>/ {fmtVal(r.target, r.unit)}</span>
+                    </span>
+                  </div>
+                  <div className="h-2 rounded-full bg-night/10 dark:bg-white/10">
+                    <div
+                      className={`h-full rounded-full ${pct >= 100 ? 'bg-emerald-500' : 'bg-gradient-to-r from-gold to-rose'}`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <p className={`text-[11px] ${subTx}`}>
+                    {pct >= 100 ? '達成！' : <>あと {fmtVal(remain, r.unit)}</>}
+                    {perDay !== undefined && <> · 1日 {fmtVal(perDay, r.unit)} ペース</>}
+                  </p>
+                </div>
+              )
+            })
+          )}
+        </Card>
 
         {/* 指名リング + 主要数値 */}
         <div className="grid grid-cols-2 gap-3">
@@ -233,10 +331,10 @@ export default function SalesReport() {
           onClick={() => setEditing(false)}
         >
           <div
-            className="safe-bottom w-full max-w-md rounded-t-2xl bg-white p-4 dark:bg-night sm:rounded-2xl space-y-3"
+            className="safe-bottom max-h-[88vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white p-4 dark:bg-night sm:rounded-2xl space-y-3"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="font-serif text-[17px] font-bold">目標・保証の設定</h2>
+            <h2 className="font-serif text-[17px] font-bold">目標・保証・試用期間レース</h2>
             <Field label="保証終了日">
               <DateSelect
                 value={guarantee}
@@ -253,9 +351,61 @@ export default function SalesReport() {
                 <input type="number" value={shimeiInput} onChange={(e) => setShimeiInput(e.target.value)} className={inputCls} />
               </Field>
             </div>
-            <Field label="目標売上（円）">
+            <Field label="今月の目標売上（円・月締めまで）">
               <input type="number" value={targetSales} onChange={(e) => setTargetSales(e.target.value)} className={inputCls} />
             </Field>
+
+            {/* 試用期間レース（自由設定） */}
+            <div className="rounded-2xl border border-gold/30 p-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-[14px] font-bold">🏁 試用期間レース</h3>
+                <button type="button" onClick={addRace} className="text-[12px] font-bold text-gold">
+                  ＋ レースを追加
+                </button>
+              </div>
+              <Field label="試用期間の終了日">
+                <DateSelect
+                  value={trialEnd}
+                  onChange={setTrialEnd}
+                  fromYear={new Date().getFullYear()}
+                  toYear={new Date().getFullYear() + 2}
+                />
+              </Field>
+              {races.length === 0 && (
+                <p className={`text-[12px] ${subTx}`}>看板レース・うちわレースなど、名前・目標・単位を自由に設定できます。</p>
+              )}
+              {races.map((r) => (
+                <div key={r.id} className="rounded-xl border border-night/10 dark:border-white/10 p-2.5 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      value={r.name}
+                      onChange={(e) => updateRace(r.id, { name: e.target.value })}
+                      placeholder="レース名（例：看板レース）"
+                      className={`${inputCls} min-w-0 flex-1`}
+                    />
+                    <button type="button" onClick={() => removeRace(r.id)} className="text-[13px] font-semibold text-rose px-1.5">
+                      削除
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <Field label="目標">
+                      <input type="number" value={r.target || ''} onChange={(e) => updateRace(r.id, { target: Number(e.target.value) })} className={inputCls} />
+                    </Field>
+                    <Field label="現在">
+                      <input type="number" value={r.current || ''} onChange={(e) => updateRace(r.id, { current: Number(e.target.value) })} className={inputCls} />
+                    </Field>
+                    <Field label="単位">
+                      <select value={r.unit || '円'} onChange={(e) => updateRace(r.id, { unit: e.target.value })} className={inputCls}>
+                        <option value="円">円</option>
+                        <option value="本">本</option>
+                        <option value="pt">pt</option>
+                      </select>
+                    </Field>
+                  </div>
+                </div>
+              ))}
+            </div>
+
             <div className="flex gap-3 pt-1">
               <button
                 type="button"

@@ -215,6 +215,11 @@ export const demoProfile: ProfileSettings = {
   guaranteeEndDate: ts(now + 21 * day),
   targetShimei: 15,
   targetSales: 3200000,
+  trialEndDate: ts(now + 10 * day),
+  trialRaces: [
+    { id: 'r1', name: '看板レース', target: 5000000, current: 2450000, unit: '円' },
+    { id: 'r2', name: 'うちわレース', target: 40, current: 12, unit: '本' },
+  ],
 }
 export const demoMonthlyStats: MonthlyStats = { totalSales: 2450000, visitCount: 20, dohanCount: 6 }
 export const demoShimeiCount = 12

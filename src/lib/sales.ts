@@ -13,6 +13,15 @@ import {
 import { auth, db } from './firebase'
 import { demoActive, demoProfile, demoMonthlyStats, demoShimeiCount } from './demo'
 
+/** 試用期間の自由レース（看板レース・うちわレース等）。名前・目標・現在値・単位を自由に設定。 */
+export interface TrialRace {
+  id: string
+  name: string
+  target: number
+  current: number
+  unit?: string // 例: 円 / 本 / pt（既定: 円）
+}
+
 export interface ProfileSettings {
   /** 源氏名（キャスト自身の表示名。Google名は使わずこれを表示） */
   stageName?: string
@@ -24,7 +33,12 @@ export interface ProfileSettings {
   encCheck?: string
   guaranteeEndDate?: Timestamp
   targetShimei?: number
+  /** 今月の目標売上（月締めまでのカウントダウン対象） */
   targetSales?: number
+  /** 試用期間の終了日（この日までのレースを走る） */
+  trialEndDate?: Timestamp
+  /** 試用期間の自由レース一覧 */
+  trialRaces?: TrialRace[]
 }
 
 export interface MonthlyStats {
@@ -37,6 +51,12 @@ export interface MonthlyStats {
 export function currentMonthKey(nowMs: number = Date.now()): string {
   const d = new Date(nowMs)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
+/** 当月の月末（最終日23:59:59.999）のミリ秒。月締めカウントダウン用。 */
+export function monthEndMs(nowMs: number = Date.now()): number {
+  const d = new Date(nowMs)
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999).getTime()
 }
 
 function monthRange(monthKey: string): { start: Timestamp; end: Timestamp } {
