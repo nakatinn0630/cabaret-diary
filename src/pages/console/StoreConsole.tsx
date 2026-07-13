@@ -442,7 +442,7 @@ function Num({ label, value, onChange }: { label: string; value: number; onChang
         type="number"
         value={value || ''}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full rounded-xl border px-3 py-2 text-[14px] bg-white/70 dark:bg-white/[0.07] border-night/10 dark:border-white/15 outline-none focus:border-gold"
+        className="w-full rounded-xl border px-3 py-2 text-[16px] bg-white/70 dark:bg-white/[0.07] border-night/10 dark:border-white/15 outline-none focus:border-gold"
       />
     </label>
   )

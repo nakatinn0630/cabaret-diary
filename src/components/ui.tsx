@@ -19,12 +19,13 @@ export const subTx = 'text-[#6f6588] dark:text-[#b9b0cf]'
 export const goldTx = 'text-[#8a6a1e] dark:text-[#e3c987]'
 export const glass =
   'rounded-2xl border backdrop-blur-md bg-white/75 border-night/10 shadow-sm dark:bg-white/[0.06] dark:border-white/10'
+// iOS Safari は font-size<16px の入力にフォーカスすると自動ズームして画面が崩れるため、16px を厳守する。
 export const inputCls =
-  'w-full rounded-xl border px-4 py-3 text-[15px] bg-white/70 dark:bg-white/[0.07] border-night/10 dark:border-white/15 outline-none focus:border-gold placeholder:text-night/30 dark:placeholder:text-white/30'
+  'w-full rounded-xl border px-4 py-3 text-[16px] bg-white/70 dark:bg-white/[0.07] border-night/10 dark:border-white/15 outline-none focus:border-gold placeholder:text-night/30 dark:placeholder:text-white/30'
 
 /* --- 日付ドロップダウン（年/月/日）。value は 'YYYY-MM-DD' か ''（未選択） --- */
 const selectCls =
-  'rounded-xl border px-2 py-3 text-[15px] bg-white/70 dark:bg-white/[0.07] border-night/10 dark:border-white/15 outline-none focus:border-gold appearance-none text-center'
+  'rounded-xl border px-2 py-3 text-[16px] bg-white/70 dark:bg-white/[0.07] border-night/10 dark:border-white/15 outline-none focus:border-gold appearance-none text-center'
 type YMD = { y?: number; m?: number; d?: number }
 const parseYMD = (v: string): YMD => {
   const p = v ? v.split('-') : []

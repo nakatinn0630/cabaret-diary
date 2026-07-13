@@ -139,7 +139,7 @@ export default function Consult() {
           }}
           placeholder="クロに相談…（例：指名が減った / 出待ちが怖い）"
           aria-label="相談メッセージ"
-          className="flex-1 rounded-full px-4 py-3 text-[14px] bg-white/10 border border-white/15 outline-none focus:border-gold placeholder:text-white/30"
+          className="min-w-0 flex-1 rounded-full px-4 py-3 text-[16px] bg-white/10 border border-white/15 outline-none focus:border-gold placeholder:text-white/30"
         />
         <button
           type="button"
