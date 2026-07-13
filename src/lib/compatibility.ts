@@ -1,18 +1,17 @@
-import {
-  addDoc,
-  collection,
-  doc,
-  serverTimestamp,
-  updateDoc,
-} from 'firebase/firestore'
+import { doc, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { auth, db } from './firebase'
-import { demoActive } from './demo'
+import { demoActive, DEMO_UID } from './demo'
 import type { CompatibilityRank, RelationshipType } from '../types'
 
+// 保存先の切り分け（ユーザー要件）：
+//  ・占い/相性診断の「診断結果・履歴」→ 端末ローカル（localStorage）。DBには保存しない。
+//  ・診断から「ピン留めした注意点(pinnedCautions)」→ これは“顧客情報”として接客前表示や
+//    顧客編集に使うため、顧客ドキュメント(DB)に保存する。
 function requireUid(): string {
   const u = auth.currentUser
-  if (!u) throw new Error('サインインが必要です')
-  return u.uid
+  if (u) return u.uid
+  if (demoActive()) return DEMO_UID
+  throw new Error('ログインが必要です')
 }
 
 export interface DiagnosisToSave {
@@ -26,21 +25,41 @@ export interface DiagnosisToSave {
   pinnedCautions: string[]
 }
 
-export async function saveDiagnosis(cid: string, d: DiagnosisToSave): Promise<string> {
-  if (demoActive()) return 'demo_diag'
-  const uid = requireUid()
-  const ref = await addDoc(collection(db, 'users', uid, 'customers', cid, 'compatibility'), {
-    ...d,
-    createdAt: serverTimestamp(),
-  })
-  return ref.id
+type StoredDiagnosis = DiagnosisToSave & { id: string; cid: string; at: number }
+
+const diagKey = (uid: string) => `kyabacho_diagnoses_${uid}`
+function readDiag(uid: string): StoredDiagnosis[] {
+  try {
+    return JSON.parse(localStorage.getItem(diagKey(uid)) ?? '[]') as StoredDiagnosis[]
+  } catch {
+    return []
+  }
 }
 
-/** F-14 選択した注意点を顧客に保存（接客前・返信生成前に表示） */
+/** F-14 占い診断結果を端末ローカルに保存（DB非保存）。 */
+export async function saveDiagnosis(cid: string, d: DiagnosisToSave): Promise<string> {
+  const uid = requireUid()
+  const id = 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
+  const list = readDiag(uid)
+  list.unshift({ ...d, id, cid, at: Date.now() })
+  localStorage.setItem(diagKey(uid), JSON.stringify(list.slice(0, 200)))
+  return id
+}
+
+/** ある顧客の過去診断（端末ローカル）を新しい順に取得。 */
+export function getDiagnoses(cid: string): StoredDiagnosis[] {
+  const u = auth.currentUser
+  const uid = u ? u.uid : demoActive() ? DEMO_UID : null
+  if (!uid) return []
+  return readDiag(uid).filter((x) => x.cid === cid)
+}
+
+/** F-14 選択した注意点を顧客に保存（接客前・返信生成前に表示）＝顧客情報なのでDB保存。 */
 export async function setPinnedCautions(cid: string, pinned: string[]): Promise<void> {
   if (demoActive()) return
-  const uid = requireUid()
-  await updateDoc(doc(db, 'users', uid, 'customers', cid), {
+  const u = auth.currentUser
+  if (!u) throw new Error('ログインが必要です')
+  await updateDoc(doc(db, 'users', u.uid, 'customers', cid), {
     pinnedCautions: pinned,
     updatedAt: serverTimestamp(),
   })
