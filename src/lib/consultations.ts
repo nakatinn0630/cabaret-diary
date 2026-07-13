@@ -1,98 +1,102 @@
-import { useEffect, useState } from 'react'
-import {
-  addDoc,
-  collection,
-  doc,
-  onSnapshot,
-  orderBy,
-  query,
-  serverTimestamp,
-  updateDoc,
-  arrayUnion,
-  Timestamp,
-  type DocumentData,
-  type QueryDocumentSnapshot,
-} from 'firebase/firestore'
-import { auth, db } from './firebase'
+import { useMemo, useSyncExternalStore } from 'react'
+import { Timestamp } from 'firebase/firestore'
+import { auth } from './firebase'
 import { demoActive, demoConsultations } from './demo'
-import { encFieldMaybe, decField } from './crypto'
 import type { Consultation, ConsultationMessage, ConsultationCategory, EscalationTarget } from '../types'
 
-function requireUid(): string {
+// AI黒服「クロ」の相談は、プライバシー最優先で **DB(Firestore)に保存せず、自端末のローカル(localStorage)にのみ保存**する。
+// 端末外に一切出さない（他端末同期なし・店/他キャストからも到達不可）。localStorage を消すと履歴も消える。
+
+type StoredMsg = { role: 'user' | 'assistant'; text: string; at: number }
+type StoredConsult = {
+  id: string
+  category?: ConsultationCategory
+  escalatedTo?: EscalationTarget
+  messages: StoredMsg[]
+  createdAt: number
+  updatedAt: number
+}
+
+const storeKey = (): string | null => {
   const u = auth.currentUser
-  if (!u) throw new Error('サインインが必要です')
-  return u.uid
+  return u ? `kyabacho_consults_${u.uid}` : null
 }
 
-const consultsPath = (uid: string) => collection(db, 'users', uid, 'consultations')
-const consultRef = (uid: string, tid: string) => doc(db, 'users', uid, 'consultations', tid)
-
-function mapConsult(snap: QueryDocumentSnapshot<DocumentData>): Consultation {
-  const d = snap.data()
-  return { id: snap.id, ...(d as Omit<Consultation, 'id'>) }
+const listeners = new Set<() => void>()
+function subscribe(cb: () => void): () => void {
+  listeners.add(cb)
+  return () => listeners.delete(cb)
 }
+function notify() {
+  listeners.forEach((l) => l())
+}
+
+/** getSnapshot: 参照安定のため生JSON文字列を返す（変化が無ければ同一文字列） */
+function rawSnapshot(): string {
+  const k = storeKey()
+  if (!k) return '[]'
+  return localStorage.getItem(k) ?? '[]'
+}
+function readStore(): StoredConsult[] {
+  try {
+    return JSON.parse(rawSnapshot()) as StoredConsult[]
+  } catch {
+    return []
+  }
+}
+function writeStore(list: StoredConsult[]): void {
+  const k = storeKey()
+  if (!k) return
+  localStorage.setItem(k, JSON.stringify(list))
+  notify()
+}
+
+const msgToStored = (m: ConsultationMessage): StoredMsg => ({
+  role: m.role,
+  text: m.text,
+  at: m.at?.toMillis?.() ?? Date.now(),
+})
+const toDomain = (s: StoredConsult): Consultation => ({
+  id: s.id,
+  category: s.category,
+  escalatedTo: s.escalatedTo,
+  messages: s.messages.map((m) => ({ role: m.role, text: m.text, at: Timestamp.fromMillis(m.at) })),
+  createdAt: Timestamp.fromMillis(s.createdAt),
+  updatedAt: Timestamp.fromMillis(s.updatedAt),
+})
 
 export function useConsultations(): { consultations: Consultation[]; loading: boolean } {
-  const [consultations, setConsultations] = useState<Consultation[]>([])
-  const [loading, setLoading] = useState(true)
-  useEffect(() => {
-    if (demoActive()) {
-      setConsultations(demoConsultations)
-      setLoading(false)
-      return
+  const raw = useSyncExternalStore(subscribe, rawSnapshot, () => '[]')
+  const local = useMemo(() => {
+    let list: StoredConsult[] = []
+    try {
+      list = JSON.parse(raw) as StoredConsult[]
+    } catch {
+      list = []
     }
-    const u = auth.currentUser
-    if (!u) {
-      setLoading(false)
-      return
-    }
-    const q = query(consultsPath(u.uid), orderBy('updatedAt', 'desc'))
-    return onSnapshot(
-      q,
-      (snap) => {
-        setConsultations(snap.docs.map(mapConsult))
-        setLoading(false)
-      },
-      () => setLoading(false),
-    )
-  }, [])
-  return { consultations, loading }
+    return list.sort((a, b) => b.updatedAt - a.updatedAt).map(toDomain)
+  }, [raw])
+  if (demoActive()) return { consultations: demoConsultations, loading: false }
+  return { consultations: local, loading: false }
 }
 
 export function useConsultation(tid: string | undefined): Consultation | null {
-  const [c, setC] = useState<Consultation | null>(null)
-  useEffect(() => {
-    if (demoActive()) {
-      setC(demoConsultations.find((x) => x.id === tid) ?? null)
-      return
-    }
-    const u = auth.currentUser
-    if (!u || !tid) return
-    return onSnapshot(consultRef(u.uid, tid), (snap) => {
-      if (!snap.exists()) {
-        setC(null)
-        return
-      }
-      const raw = { id: snap.id, ...(snap.data() as Omit<Consultation, 'id'>) }
-      // SEC-07 本文を復号（ロック中は目印を表示）
-      void Promise.all(
-        (raw.messages ?? []).map(async (m) => ({ ...m, text: await decField(m.text) })),
-      ).then((messages) => setC({ ...raw, messages }))
-    })
-  }, [tid])
-  return c
+  const { consultations } = useConsultations()
+  return consultations.find((c) => c.id === tid) ?? null
 }
 
-// ※ messages[].text は本番でアプリ層暗号化（SEC-07）。相談ログは本人以外閲覧不可（店にも共有しない）。
+function newId(): string {
+  return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
+}
+
 export async function createConsultation(first: ConsultationMessage): Promise<string> {
   if (demoActive()) return 'dc_1'
-  const uid = requireUid()
-  const ref = await addDoc(consultsPath(uid), {
-    messages: [{ ...first, text: await encFieldMaybe(first.text) }],
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  })
-  return ref.id
+  const now = Date.now()
+  const id = newId()
+  const list = readStore()
+  list.unshift({ id, messages: [msgToStored(first)], createdAt: now, updatedAt: now })
+  writeStore(list)
+  return id
 }
 
 export async function appendMessage(
@@ -101,12 +105,22 @@ export async function appendMessage(
   meta?: { category?: ConsultationCategory; escalatedTo?: EscalationTarget },
 ): Promise<void> {
   if (demoActive()) return
-  const uid = requireUid()
-  const stored = { ...msg, text: await encFieldMaybe(msg.text) }
-  const data: DocumentData = { messages: arrayUnion(stored), updatedAt: serverTimestamp() }
-  if (meta?.category) data.category = meta.category
-  if (meta?.escalatedTo) data.escalatedTo = meta.escalatedTo
-  await updateDoc(consultRef(uid, tid), data)
+  const list = readStore()
+  const c = list.find((x) => x.id === tid)
+  if (!c) return
+  c.messages.push(msgToStored(msg))
+  c.updatedAt = Date.now()
+  if (meta?.category) c.category = meta.category
+  if (meta?.escalatedTo) c.escalatedTo = meta.escalatedTo
+  writeStore(list)
+}
+
+/** 端末ローカルの相談履歴を全消去（設定からの手動削除用） */
+export function clearConsultations(): void {
+  const k = storeKey()
+  if (!k) return
+  localStorage.removeItem(k)
+  notify()
 }
 
 export function nowMsg(role: 'user' | 'assistant', text: string): ConsultationMessage {
