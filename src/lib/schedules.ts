@@ -92,7 +92,15 @@ export async function createSchedule(input: NewSchedule): Promise<string> {
 export async function updateSchedule(sid: string, patch: Partial<NewSchedule>): Promise<void> {
   if (demoActive()) return
   const uid = requireUid()
-  await updateDoc(scheduleRef(uid, sid), { ...patch, updatedAt: serverTimestamp() })
+  // Firestore は undefined を拒否する。createSchedule と同じ正規化を行い、
+  // customerId 未選択は null（＝クリア）、memo 未入力は '' として保存する。
+  const data: DocumentData = { updatedAt: serverTimestamp() }
+  if (patch.type !== undefined) data.type = patch.type
+  if (patch.start !== undefined) data.start = patch.start
+  if (patch.end !== undefined) data.end = patch.end
+  if ('customerId' in patch) data.customerId = patch.customerId ?? null
+  if ('memo' in patch) data.memo = patch.memo ?? ''
+  await updateDoc(scheduleRef(uid, sid), data)
 }
 
 export async function setGoogleEventId(sid: string, googleEventId: string | null): Promise<void> {

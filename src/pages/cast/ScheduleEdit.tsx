@@ -11,6 +11,7 @@ import {
   SCHEDULE_LABEL,
 } from '../../lib/schedules'
 import { ensureCabaageCalendar, upsertEvent } from '../../lib/gcal'
+import { parseScheduleText } from '../../lib/lineParser'
 import type { ScheduleType } from '../../types'
 import { Header, Main, Field, Seg, DateSelect, useToast, inputCls, subTx } from '../../components/ui'
 
@@ -53,6 +54,29 @@ export default function ScheduleEdit() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [syncWarn, setSyncWarn] = useState<string | null>(null)
+  const [pasteOpen, setPasteOpen] = useState(false)
+  const [pasteText, setPasteText] = useState('')
+
+  // LINE等から貼り付けた文章を解析して日付・時刻・メモに反映
+  const importFromPaste = () => {
+    const p = parseScheduleText(pasteText)
+    const got: string[] = []
+    if (p.date) {
+      setDate(p.date)
+      got.push('日付')
+    }
+    if (p.startTime) {
+      setStartTime(p.startTime)
+      got.push('開始')
+    }
+    if (p.endTime) {
+      setEndTime(p.endTime)
+      got.push('終了')
+    }
+    setMemo(pasteText.trim())
+    setPasteOpen(false)
+    toast(got.length ? `読み込みました（${got.join('・')}）✓` : '本文をメモに取り込みました（日付/時刻は手動調整を）')
+  }
 
   useEffect(() => {
     if (editing && existing) {
@@ -135,6 +159,46 @@ export default function ScheduleEdit() {
         }
       />
       <Main className="!pb-10">
+        {/* LINE等からの貼り付け読み込み */}
+        {!pasteOpen ? (
+          <button
+            type="button"
+            onClick={() => setPasteOpen(true)}
+            className="w-full rounded-xl border border-dashed border-gold/50 bg-gold/5 px-4 py-2.5 text-[13px] font-semibold text-gold"
+          >
+            💬 LINEを貼り付けて予定を読み込む
+          </button>
+        ) : (
+          <div className="rounded-xl border border-gold/40 p-3 space-y-2">
+            <p className={`text-[12px] font-semibold ${subTx}`}>LINEの本文を貼り付け → 日付・時刻を自動で読み取ります</p>
+            <textarea
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              rows={3}
+              className={inputCls}
+              placeholder="例：駒井さん・漣さんとセミナー 7/14(火)19:00-21:00@東京"
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setPasteOpen(false)}
+                className="flex-1 min-h-[40px] rounded-xl border border-night/15 dark:border-white/20 text-[13px] font-semibold"
+              >
+                閉じる
+              </button>
+              <button
+                type="button"
+                onClick={importFromPaste}
+                disabled={!pasteText.trim()}
+                className="flex-[2] min-h-[40px] rounded-xl bg-gold text-night text-[14px] font-bold disabled:opacity-40"
+              >
+                読み込む
+              </button>
+            </div>
+          </div>
+        )}
+
         <Field label="種別">
           <Seg<ScheduleType>
             options={TYPES.map((t) => ({ v: t, label: `${SCHED_ICON[t]} ${SCHEDULE_LABEL[t]}` }))}
@@ -145,22 +209,32 @@ export default function ScheduleEdit() {
 
         {needsCustomer && (
           <Field label="お客様">
-            <div className="flex flex-wrap gap-2">
-              {customers.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => setCustomerId(c.id)}
-                  className={`px-4 py-2.5 rounded-full text-[13px] font-semibold border transition min-h-[44px] ${
-                    customerId === c.id
-                      ? 'bg-rose text-white border-rose shadow'
-                      : 'bg-white/50 dark:bg-white/[0.06] border-night/10 dark:border-white/15'
-                  }`}
-                >
-                  {c.nickname}
-                </button>
-              ))}
-            </div>
+            {customers.length === 0 ? (
+              <button
+                type="button"
+                onClick={() => navigate('/customers/new')}
+                className={`text-left text-[13px] text-gold font-semibold`}
+              >
+                ＋ 顧客が未登録です。先に顧客を登録する
+              </button>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {customers.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => setCustomerId(customerId === c.id ? '' : c.id)}
+                    className={`px-4 py-2 rounded-full text-[13px] font-semibold border transition min-h-[40px] ${
+                      customerId === c.id
+                        ? 'bg-rose text-white border-rose shadow'
+                        : 'bg-white/50 dark:bg-white/[0.06] border-night/10 dark:border-white/15'
+                    }`}
+                  >
+                    {c.nickname}
+                  </button>
+                ))}
+              </div>
+            )}
           </Field>
         )}
 
@@ -180,8 +254,8 @@ export default function ScheduleEdit() {
           <textarea
             value={memo}
             onChange={(e) => setMemo(e.target.value)}
-            rows={2}
-            className={inputCls}
+            rows={5}
+            className={`${inputCls} leading-relaxed`}
             placeholder="場所・約束ごと など"
           />
         </Field>

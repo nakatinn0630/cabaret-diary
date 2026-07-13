@@ -60,3 +60,55 @@ export function analyzeTone(messages: ParsedMessage[], myName: string): ToneStat
   const tone = `${emojiRate >= 0.5 ? '絵文字多め' : '絵文字控えめ'}・${avgLen < 15 ? '短文' : '標準文'}`
   return { emojiRate: Math.round(emojiRate * 100) / 100, avgLen, tone }
 }
+
+// F-05b LINE等から貼り付けた自由文を「予定」に解析する（純粋関数）。
+// 例: 「駒井さん・漣さんとセミナー 7/14(火)19:00-21:00@東京」→ 日付/開始/終了/メモ
+export interface ParsedSchedule {
+  date?: string // 'YYYY-MM-DD'
+  startTime?: string // 'HH:MM'
+  endTime?: string // 'HH:MM'
+  memo: string
+}
+
+export function parseScheduleText(raw: string, nowMs: number = Date.now()): ParsedSchedule {
+  const text = raw.trim()
+  const now = new Date(nowMs)
+  const pad = (n: number) => String(n).padStart(2, '0')
+
+  // --- 日付 ---
+  let date: string | undefined
+  let dm = text.match(/(\d{4})\s*[/.\-年]\s*(\d{1,2})\s*[/.\-月]\s*(\d{1,2})/)
+  if (dm) {
+    date = `${dm[1]}-${pad(+dm[2])}-${pad(+dm[3])}`
+  } else {
+    dm = text.match(/(\d{1,2})\s*[/.月]\s*(\d{1,2})/) // M/D・M月D日
+    if (dm) {
+      const mo = +dm[1]
+      const d = +dm[2]
+      let y = now.getFullYear()
+      const today = new Date(y, now.getMonth(), now.getDate()).getTime()
+      // 過去日なら翌年扱い（年跨ぎ）
+      if (new Date(y, mo - 1, d).getTime() < today - 24 * 60 * 60 * 1000) y += 1
+      if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31) date = `${y}-${pad(mo)}-${pad(d)}`
+    }
+  }
+
+  // --- 時刻帯 ---
+  let startTime: string | undefined
+  let endTime: string | undefined
+  // 26時など24以上の表記は time入力に入らないため % 24 で正規化（開始>終了時は保存側で翌日補正）
+  let tm = text.match(/(\d{1,2}):(\d{2})\s*[-〜~～–]\s*(\d{1,2}):(\d{2})/)
+  if (tm) {
+    startTime = `${pad(+tm[1] % 24)}:${tm[2]}`
+    endTime = `${pad(+tm[3] % 24)}:${tm[4]}`
+  } else if ((tm = text.match(/(\d{1,2})時(?:(\d{1,2})分?)?\s*[-〜~～–]\s*(\d{1,2})時(?:(\d{1,2})分?)?/))) {
+    startTime = `${pad(+tm[1] % 24)}:${pad(tm[2] ? +tm[2] : 0)}`
+    endTime = `${pad(+tm[3] % 24)}:${pad(tm[4] ? +tm[4] : 0)}`
+  } else if ((tm = text.match(/(\d{1,2}):(\d{2})/))) {
+    startTime = `${pad(+tm[1] % 24)}:${tm[2]}`
+  } else if ((tm = text.match(/(\d{1,2})時(?:(\d{1,2})分?)?/))) {
+    startTime = `${pad(+tm[1] % 24)}:${pad(tm[2] ? +tm[2] : 0)}`
+  }
+
+  return { date, startTime, endTime, memo: text }
+}

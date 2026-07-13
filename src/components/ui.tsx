@@ -20,12 +20,13 @@ export const goldTx = 'text-[#8a6a1e] dark:text-[#e3c987]'
 export const glass =
   'rounded-2xl border backdrop-blur-md bg-white/75 border-night/10 shadow-sm dark:bg-white/[0.06] dark:border-white/10'
 // iOS Safari は font-size<16px の入力にフォーカスすると自動ズームして画面が崩れるため、16px を厳守する。
+// 縦は詰めめ（py-2.5）で入力エリアが間延びしないようにする。
 export const inputCls =
-  'w-full rounded-xl border px-4 py-3 text-[16px] bg-white/70 dark:bg-white/[0.07] border-night/10 dark:border-white/15 outline-none focus:border-gold placeholder:text-night/30 dark:placeholder:text-white/30'
+  'w-full rounded-xl border px-4 py-2.5 text-[16px] bg-white/70 dark:bg-white/[0.07] border-night/10 dark:border-white/15 outline-none focus:border-gold placeholder:text-night/30 dark:placeholder:text-white/30'
 
 /* --- 日付ドロップダウン（年/月/日）。value は 'YYYY-MM-DD' か ''（未選択） --- */
 const selectCls =
-  'rounded-xl border px-2 py-3 text-[16px] bg-white/70 dark:bg-white/[0.07] border-night/10 dark:border-white/15 outline-none focus:border-gold appearance-none text-center'
+  'rounded-xl border px-2 py-2.5 text-[16px] bg-white/70 dark:bg-white/[0.07] border-night/10 dark:border-white/15 outline-none focus:border-gold appearance-none text-center'
 type YMD = { y?: number; m?: number; d?: number }
 const parseYMD = (v: string): YMD => {
   const p = v ? v.split('-') : []
@@ -178,7 +179,7 @@ export function Seg<T extends string>({
             role="radio"
             aria-checked={on}
             onClick={() => onChange(v)}
-            className={`px-4 py-2.5 rounded-full text-[13px] font-semibold border transition min-h-[44px] ${
+            className={`px-4 py-2 rounded-full text-[13px] font-semibold border transition min-h-[40px] ${
               on
                 ? 'bg-gold text-night border-gold shadow'
                 : 'bg-white/50 dark:bg-white/[0.06] border-night/10 dark:border-white/15'
@@ -212,7 +213,7 @@ export function MultiPill<T extends string>({
             type="button"
             aria-pressed={on}
             onClick={() => onToggle(o.v)}
-            className={`px-4 py-2.5 rounded-full text-[13px] font-semibold border transition min-h-[44px] ${
+            className={`px-4 py-2 rounded-full text-[13px] font-semibold border transition min-h-[40px] ${
               on
                 ? 'bg-rose text-white border-rose shadow'
                 : 'bg-white/50 dark:bg-white/[0.06] border-night/10 dark:border-white/15'
@@ -267,7 +268,7 @@ export function Field({
   children: ReactNode
 }) {
   return (
-    <label className="block space-y-1.5">
+    <label className="block space-y-1">
       <span className={`text-[12px] font-semibold ${subTx}`}>
         {label}
         {required && <span className="text-rose ml-1">*必須</span>}
@@ -314,7 +315,7 @@ export function Header({
 
 export function Main({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
-    <main className={`flex-1 min-h-0 overflow-y-auto px-5 pb-28 space-y-3.5 ${className}`}>
+    <main className={`flex-1 min-h-0 overflow-y-auto px-5 pb-28 space-y-3 ${className}`}>
       {children}
     </main>
   )
