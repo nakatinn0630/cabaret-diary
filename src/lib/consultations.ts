@@ -1,7 +1,7 @@
-import { useMemo, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useSyncExternalStore } from 'react'
 import { Timestamp } from 'firebase/firestore'
 import { auth } from './firebase'
-import { demoActive, demoConsultations } from './demo'
+import { demoActive, demoConsultations, DEMO_UID } from './demo'
 import type { Consultation, ConsultationMessage, ConsultationCategory, EscalationTarget } from '../types'
 
 // AI黒服「クロ」の相談は、プライバシー最優先で **DB(Firestore)に保存せず、自端末のローカル(localStorage)にのみ保存**する。
@@ -19,7 +19,10 @@ type StoredConsult = {
 
 const storeKey = (): string | null => {
   const u = auth.currentUser
-  return u ? `kyabacho_consults_${u.uid}` : null
+  if (u) return `kyabacho_consults_${u.uid}`
+  // デモは firebase の currentUser が無い（AuthContext 側の擬似ユーザーのみ）ため DEMO_UID を使う。
+  if (demoActive()) return `kyabacho_consults_${DEMO_UID}`
+  return null
 }
 
 const listeners = new Set<() => void>()
@@ -65,8 +68,21 @@ const toDomain = (s: StoredConsult): Consultation => ({
   updatedAt: Timestamp.fromMillis(s.updatedAt),
 })
 
+const consultToStored = (c: Consultation): StoredConsult => ({
+  id: c.id,
+  category: c.category,
+  escalatedTo: c.escalatedTo,
+  messages: c.messages.map(msgToStored),
+  createdAt: c.createdAt?.toMillis?.() ?? Date.now(),
+  updatedAt: c.updatedAt?.toMillis?.() ?? Date.now(),
+})
+
 export function useConsultations(): { consultations: Consultation[]; loading: boolean } {
   const raw = useSyncExternalStore(subscribe, rawSnapshot, () => '[]')
+  // デモ初回はサンプル相談で種まき（以降は実際に会話でき、AIも応答する）。
+  useEffect(() => {
+    if (demoActive() && readStore().length === 0) writeStore(demoConsultations.map(consultToStored))
+  }, [])
   const local = useMemo(() => {
     let list: StoredConsult[] = []
     try {
@@ -76,7 +92,6 @@ export function useConsultations(): { consultations: Consultation[]; loading: bo
     }
     return list.sort((a, b) => b.updatedAt - a.updatedAt).map(toDomain)
   }, [raw])
-  if (demoActive()) return { consultations: demoConsultations, loading: false }
   return { consultations: local, loading: false }
 }
 
@@ -90,7 +105,6 @@ function newId(): string {
 }
 
 export async function createConsultation(first: ConsultationMessage): Promise<string> {
-  if (demoActive()) return 'dc_1'
   const now = Date.now()
   const id = newId()
   const list = readStore()
@@ -104,7 +118,6 @@ export async function appendMessage(
   msg: ConsultationMessage,
   meta?: { category?: ConsultationCategory; escalatedTo?: EscalationTarget },
 ): Promise<void> {
-  if (demoActive()) return
   const list = readStore()
   const c = list.find((x) => x.id === tid)
   if (!c) return
