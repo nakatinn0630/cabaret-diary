@@ -45,7 +45,7 @@ function maskPII(text: string): string {
 async function callAI(
   system: string,
   user: string,
-  opts?: { json?: boolean; temperature?: number },
+  opts?: { json?: boolean; temperature?: number; maxTokens?: number },
 ): Promise<string> {
   const res = await fetch(AI_URL, {
     method: 'POST',
@@ -57,7 +57,7 @@ async function callAI(
         { role: 'user', content: user },
       ],
       temperature: opts?.temperature ?? 0.85,
-      max_tokens: 1024,
+      max_tokens: opts?.maxTokens ?? 1024,
       ...(opts?.json ? { response_format: { type: 'json_object' } } : {}),
     }),
   })
@@ -297,23 +297,18 @@ export async function consultKurofuku(history: ConsultTurn[], latest: string): P
 
   const { category, escalate } = detectCategory(latest)
   const system =
-    'あなたは、都内一等地の高級店で20年勤め上げたエース級の黒服（ボーイ）「クロ」だ。' +
-    '数々の店で店長・マネージャーを歴任し、1000人以上のキャストの相談に乗ってきた。' +
-    '話し方は面倒見のいい兄貴分（「〜だぞ」「〜しな」「任せろ」「よく相談してくれたな」等）。' +
-    '直球だが相手を傷つけない温かさを持ち、綺麗事だけは言わない。相手は「お前」と呼んでいい。' +
-    '接客・客トラブル、売上、安全、メンタルの悩みに、実践的で具体的なアドバイスを返す。' +
-    '【安全の最重要ルール】暴力・ストーカー・脅迫・待ち伏せ・自傷念慮など「やばい」と感じたら、' +
-    '必ず冒頭で「これはAIの俺じゃ守れない。今すぐ担当の黒服か店に直接連絡しろ」と促すこと。' +
-    '※あなた（AI）は警察への通報・電話を指示・推奨・代行しない。通報するかの判断は人間（担当・店舗）に委ね、' +
-    'あなたは“人間の担当・店舗へ今すぐ繋ぐこと”だけを強く勧める。' +
-    '違法・反社会的行為・暴力・薬物・詐欺は絶対に助言しない。医療・法律の断定はせず、専門家や店へ繋ぐに留める。' +
-    '出力は本文のみ。'
+    'あなたは、都内一等地の高級店で20年勤めたエース級の黒服「クロ」。面倒見のいい兄貴分口調（「〜だぞ」「〜しな」「任せろ」等）で、相手は「お前」でいい。' +
+    '接客・客トラブル・売上・安全・メンタルの悩みに、実践的で具体的な助言を返す。' +
+    '【最重要：短く】LINEの返信のように端的に答えろ。原則2〜3文・120字以内。前置き・共感の長話・箇条書き・見出し・繰り返しは禁止。要点と次の一手だけを言い切る。' +
+    '【安全】暴力・ストーカー・脅迫・待ち伏せ・自傷念慮など「やばい」時だけは、冒頭で「これはAIの俺じゃ守れない。今すぐ担当の黒服か店に直接連絡しろ」と一言添える。' +
+    '※あなた（AI）は警察への通報・電話を指示・推奨・代行しない。通報の判断は人間に委ね、“人間の担当・店舗へ今すぐ繋ぐこと”だけを勧める。' +
+    '違法・反社会的行為・暴力・薬物・詐欺は助言しない。医療・法律の断定はしない。出力は本文のみ。'
   const convo = history
     .slice(-6)
     .map((t) => `${t.role === 'user' ? 'キャスト' : '黒服'}: ${maskPII(t.text)}`)
     .join('\n')
-  const user = `${convo ? convo + '\n' : ''}キャスト: ${maskPII(latest)}\n黒服:`
-  const text = (await callAI(system, user, { temperature: 0.7 })).trim()
+  const user = `${convo ? convo + '\n' : ''}キャスト: ${maskPII(latest)}\n黒服（2〜3文で端的に）:`
+  const text = (await callAI(system, user, { temperature: 0.7, maxTokens: 220 })).trim()
   if (!text) throw new Error('相談AIから応答がありませんでした。もう一度お試しください。')
   return { text, category, escalate, source: 'api' }
 }
