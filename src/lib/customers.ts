@@ -19,7 +19,7 @@ import {
 import { auth, db } from './firebase'
 import { computeRisk } from './risk'
 import { demoActive, demoCustomers, demoVisitsByCustomer } from './demo'
-import { encField } from './crypto'
+import { encFieldMaybe } from './crypto'
 import type { Customer, Visit, CustomerRank, PaymentMethod, Bottle, Fit } from '../types'
 
 function requireUid(): string {
@@ -195,7 +195,7 @@ export async function createCustomer(input: NewCustomer): Promise<string> {
     nickname: input.nickname,
     lineName: input.lineName ?? '',
     phone: input.phone ?? '',
-    realName: await encField(input.realName), // SEC-07 本名は暗号化して保存
+    realName: await encFieldMaybe(input.realName), // SEC-07 パスフレーズ設定時のみ暗号化。未設定でも保存を止めない（鍵ロックで顧客が保存できない不具合の修正）
     occupation: input.occupation ?? '',
     companyName: input.companyName ?? '',
     incomeRange: input.incomeRange ?? '',
@@ -232,7 +232,7 @@ export async function updateCustomer(
     data['fortune.birthday'] = birthday ? Timestamp.fromDate(new Date(birthday)) : null
   }
   if (realName !== undefined) {
-    data.realName = await encField(realName)
+    data.realName = await encFieldMaybe(realName)
   }
   if (rankChanged && patch.rank) {
     data.rankHistory = arrayUnion({ rank: patch.rank, changedAt: Timestamp.now() })
