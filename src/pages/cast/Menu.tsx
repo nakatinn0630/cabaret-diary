@@ -17,6 +17,7 @@ import {
 } from '../../components/ui'
 
 import { showsStore } from '../../lib/surface'
+import { clearConsultations } from '../../lib/consultations'
 
 const items: { icon: string; label: string; to: string }[] = [
   { icon: '📊', label: '売上レポート', to: '/sales' },
@@ -171,7 +172,7 @@ export default function Menu() {
         {/* SEC-07 データ暗号化 */}
         <Card className="p-4 space-y-2.5">
           <div className="flex items-center justify-between">
-            <SectionTitle>🔒 データ暗号化（本名・相談）</SectionTitle>
+            <SectionTitle>🔒 データ暗号化（本名）</SectionTitle>
             {hasPassphrase && (
               <span className={`text-[11px] font-bold ${unlocked ? 'text-emerald-500' : 'text-rose'}`}>
                 {unlocked ? '🔓 解除済み' : '🔒 ロック中'}
@@ -182,7 +183,8 @@ export default function Menu() {
           {!hasPassphrase ? (
             <>
               <p className={`text-[12px] leading-relaxed ${subTx}`}>
-                本名や黒服相談の内容を、あなただけが読める形で暗号化します。パスフレーズはサーバに送られません。
+                顧客の本名を、この端末だけで復号できる形で暗号化して保存します。パスフレーズはサーバに送られません。
+                （※AI黒服「クロ」への相談内容は、そもそもDBに保存せず端末内のみに保持します）
                 <span className="text-rose font-semibold">
                   忘れると復号できず、暗号化したデータは二度と読めません。
                 </span>
@@ -218,7 +220,7 @@ export default function Menu() {
           ) : !unlocked ? (
             <>
               <p className={`text-[12px] leading-relaxed ${subTx}`}>
-                この端末はロック中です。パスフレーズを入力すると本名・相談を復号できます。
+                この端末はロック中です。パスフレーズを入力すると本名を復号できます。
               </p>
               <Field label="パスフレーズ">
                 <input
@@ -241,7 +243,7 @@ export default function Menu() {
           ) : (
             <>
               <p className={`text-[12px] leading-relaxed ${goldTx}`}>
-                この端末は解除済みです。本名・相談は暗号化して保存されています。
+                この端末は解除済みです。以降に保存する本名は暗号化されます。
               </p>
               <button
                 type="button"
@@ -255,6 +257,20 @@ export default function Menu() {
           {encErr && <p className="text-[12px] text-rose font-semibold">{encErr}</p>}
         </Card>
 
+        {/* プライバシー：端末ローカルの相談履歴を消去 */}
+        <button
+          type="button"
+          onClick={() => {
+            if (confirm('この端末に保存されたAI黒服「クロ」への相談履歴をすべて消去します。よろしいですか？（元に戻せません）')) {
+              clearConsultations()
+              toast('相談履歴を消去しました')
+            }
+          }}
+          className="w-full min-h-[44px] rounded-2xl border border-night/15 dark:border-white/20 font-semibold text-[13px]"
+        >
+          🗑 クロへの相談履歴を端末から消す
+        </button>
+
         <button
           type="button"
           onClick={() => void signOut()}
@@ -262,7 +278,7 @@ export default function Menu() {
         >
           ログアウト
         </button>
-        <p className={`text-center text-[11px] ${subTx}`}>キャバ帳 v1.1.0</p>
+        <p className={`text-center text-[11px] ${subTx}`}>キャバ帳 / Cabaret Diary v1.2</p>
       </Main>
     </div>
   )

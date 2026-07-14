@@ -104,8 +104,8 @@ export default function CustomerEdit() {
       tags: splitList(tagsText),
       fit: { level: fitLevel, fatigue: fitFatigue, reasonTags: splitList(fitReasonsText) },
       pinnedCautions: cautionsText.split('\n').map((t) => t.trim()).filter(Boolean),
-      // 本名はロック解除時のみ更新（ロック中は既存の暗号値を保持）
-      ...(unlocked ? { realName: realNameInput.trim() } : {}),
+      // 本名: 未設定(平文可)または解除済みなら保存。設定済みロック中のみ既存暗号値を保持。
+      ...(!(hasPassphrase && !unlocked) ? { realName: realNameInput.trim() } : {}),
     }
     setSaving(true)
     try {
@@ -181,31 +181,34 @@ export default function CustomerEdit() {
             toYear={nowYear}
           />
         </Field>
-        {unlocked ? (
-          <Field label="本名（暗号化して保存）">
+        {/* パスフレーズを設定済みでロック中のときだけ入力不可。未設定なら通常入力（平文保存・所有者のみ閲覧可）。 */}
+        {hasPassphrase && !unlocked ? (
+          <Field label="本名">
+            <div className={`rounded-xl border border-night/10 dark:border-white/15 px-4 py-3 text-[13px] ${subTx}`}>
+              🔒 ロック中です。メニューの「データ暗号化」で解除すると入力・編集できます。
+              <button type="button" onClick={() => navigate('/menu')} className="ml-1 font-bold text-gold">
+                設定へ
+              </button>
+            </div>
+          </Field>
+        ) : (
+          <Field label={unlocked ? '本名（暗号化して保存）' : '本名'}>
             <input
               value={realNameInput}
               onChange={(e) => setRealNameInput(e.target.value)}
               className={inputCls}
-              placeholder="任意（この端末で復号済み）"
+              placeholder="任意"
               autoComplete="off"
             />
-          </Field>
-        ) : (
-          <Field label="本名">
-            <div className={`rounded-xl border border-night/10 dark:border-white/15 px-4 py-3 text-[13px] ${subTx}`}>
-              🔒{' '}
-              {hasPassphrase
-                ? 'ロック中です。メニューの「データ暗号化」で解除すると入力できます。'
-                : 'メニューの「データ暗号化」でパスフレーズを設定すると、暗号化して入力できます。'}
-              <button
-                type="button"
-                onClick={() => navigate('/menu')}
-                className="ml-1 font-bold text-gold"
-              >
-                設定へ
-              </button>
-            </div>
+            {!unlocked && (
+              <span className={`block text-[11px] ${subTx}`}>
+                ※ 本人だけが閲覧できます。さらに端末内で暗号化するには
+                <button type="button" onClick={() => navigate('/menu')} className="font-semibold text-gold">
+                  メニューでパスフレーズを設定
+                </button>
+                （任意）。
+              </span>
+            )}
           </Field>
         )}
         <div className="grid grid-cols-2 gap-3">

@@ -134,6 +134,14 @@ export default function ReplyAssist() {
           )}
         </Field>
 
+        {!cid && customers.length > 0 && (
+          <Card className="p-4">
+            <p className={`text-[13px] leading-relaxed ${subTx}`}>
+              上から顧客を選ぶと、その相手に合わせた返信案をAIが作成します。LINEのトーク履歴を取り込むと、あなたの口調に寄せた文面になります。
+            </p>
+          </Card>
+        )}
+
         {cid && (
           <>
             {/* 学習ステータス */}
