@@ -3,6 +3,7 @@ import {
   addDoc,
   collection,
   collectionGroup,
+  deleteDoc,
   doc,
   getDoc,
   onSnapshot,
@@ -10,6 +11,7 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  updateDoc,
   where,
   Timestamp,
   type DocumentData,
@@ -24,11 +26,14 @@ import {
   demoBroadcasts,
   demoStoreSales,
   demoRankings,
+  demoPenalties,
+  demoStoreMessages,
 } from './demo'
 import type {
   Broadcast,
   BroadcastType,
   Membership,
+  Penalty,
   Ranking,
   RankingMetric,
   RankingPeriod,
@@ -36,6 +41,7 @@ import type {
   SalesFigures,
   Store,
   StoreCastSales,
+  StoreMessage,
   StoreRole,
 } from '../types'
 
@@ -280,5 +286,133 @@ export function useRankings(storeId: string | undefined): Ranking[] {
       setList(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Ranking, 'id'>) }))),
     )
   }, [storeId])
+  return list
+}
+
+// ============================================================================
+// F-15b 担当付け / F-21 罰金 / ノルマ / F-20 店舗⇄キャスト連絡
+// ============================================================================
+
+/** キャストに担当黒服を割り当てる（店長/黒服） */
+export async function assignKurofuku(storeId: string, castUid: string, kurofukuUid: string): Promise<void> {
+  if (demoActive()) return
+  await setDoc(
+    doc(db, 'stores', storeId, 'memberships', castUid),
+    { assignedKurofuku: kurofukuUid || null },
+    { merge: true },
+  )
+}
+
+/** キャストの今月ノルマ（売上目標）を設定 */
+export async function setCastQuota(storeId: string, castUid: string, quota: number): Promise<void> {
+  if (demoActive()) return
+  await setDoc(
+    doc(db, 'stores', storeId, 'memberships', castUid),
+    { monthlyQuota: quota || null },
+    { merge: true },
+  )
+}
+
+// ---- 罰金（F-21） ----
+export async function addPenalty(storeId: string, castUid: string, amount: number, reason: string): Promise<void> {
+  if (demoActive()) return
+  const { uid } = requireUser()
+  await addDoc(collection(db, 'stores', storeId, 'penalties'), {
+    castUid,
+    amount,
+    reason,
+    paid: false,
+    createdBy: uid,
+    createdAt: serverTimestamp(),
+  })
+}
+
+export async function setPenaltyPaid(storeId: string, penaltyId: string, paid: boolean): Promise<void> {
+  if (demoActive()) return
+  await updateDoc(doc(db, 'stores', storeId, 'penalties', penaltyId), { paid })
+}
+
+export async function deletePenalty(storeId: string, penaltyId: string): Promise<void> {
+  if (demoActive()) return
+  await deleteDoc(doc(db, 'stores', storeId, 'penalties', penaltyId))
+}
+
+function mapPenalty(snap: QueryDocumentSnapshot<DocumentData>): Penalty {
+  return { id: snap.id, ...(snap.data() as Omit<Penalty, 'id'>) }
+}
+
+/** 店側：全キャストの罰金一覧 */
+export function usePenalties(storeId: string | undefined): Penalty[] {
+  const [list, setList] = useState<Penalty[]>([])
+  useEffect(() => {
+    if (demoActive()) {
+      setList(demoPenalties)
+      return
+    }
+    if (!storeId) return
+    const q = query(collection(db, 'stores', storeId, 'penalties'), orderBy('createdAt', 'desc'))
+    return onSnapshot(q, (snap) => setList(snap.docs.map(mapPenalty)), () => setList([]))
+  }, [storeId])
+  return list
+}
+
+/** キャスト側：自分の罰金のみ */
+export function useMyPenalties(storeId: string | undefined): Penalty[] {
+  const [list, setList] = useState<Penalty[]>([])
+  useEffect(() => {
+    const u = auth.currentUser
+    if (demoActive()) {
+      setList(demoPenalties.filter((p) => p.castUid === (u?.uid ?? 'demo-user') || true))
+      return
+    }
+    if (!storeId || !u) return
+    const q = query(collection(db, 'stores', storeId, 'penalties'), where('castUid', '==', u.uid))
+    return onSnapshot(q, (snap) => setList(snap.docs.map(mapPenalty)), () => setList([]))
+  }, [storeId])
+  return list
+}
+
+// ---- 店舗⇄キャスト連絡（F-20・本人と店のみ可視） ----
+export async function sendStoreMessage(
+  storeId: string,
+  castUid: string,
+  text: string,
+  fromRole: 'store' | 'cast',
+): Promise<void> {
+  if (demoActive()) return
+  const { uid, name } = requireUser()
+  await addDoc(collection(db, 'stores', storeId, 'messages'), {
+    castUid,
+    fromUid: uid,
+    fromRole,
+    fromName: name,
+    text,
+    createdAt: serverTimestamp(),
+  })
+}
+
+function mapMessage(snap: QueryDocumentSnapshot<DocumentData>): StoreMessage {
+  return { id: snap.id, ...(snap.data() as Omit<StoreMessage, 'id'>) }
+}
+
+/** 特定キャストのスレッド（店側＝任意のcastUid、キャスト側＝自分のuid） */
+export function useStoreMessages(storeId: string | undefined, castUid: string | undefined): StoreMessage[] {
+  const [list, setList] = useState<StoreMessage[]>([])
+  useEffect(() => {
+    if (demoActive()) {
+      setList(demoStoreMessages.filter((m) => !castUid || m.castUid === castUid))
+      return
+    }
+    if (!storeId || !castUid) {
+      setList([])
+      return
+    }
+    const q = query(
+      collection(db, 'stores', storeId, 'messages'),
+      where('castUid', '==', castUid),
+      orderBy('createdAt', 'asc'),
+    )
+    return onSnapshot(q, (snap) => setList(snap.docs.map(mapMessage)), () => setList([]))
+  }, [storeId, castUid])
   return list
 }

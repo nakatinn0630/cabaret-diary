@@ -27,8 +27,31 @@ export interface Membership {
   role: StoreRole
   displayName: string // 源氏名（店内表示）
   assignedKurofuku?: string // 担当黒服のuid（castの場合）
+  monthlyQuota?: Yen // 店が設定する今月のノルマ（売上目標）
   joinedAt: Timestamp
   active: boolean
+}
+
+/** stores/{storeId}/penalties/{id}（F-21 罰金） */
+export interface Penalty {
+  id: string
+  castUid: string
+  amount: Yen
+  reason: string
+  paid?: boolean
+  createdBy: string
+  createdAt: Timestamp
+}
+
+/** stores/{storeId}/messages/{id}（F-20 店舗⇄キャスト連絡・本人と店のみ可視） */
+export interface StoreMessage {
+  id: string
+  castUid: string // このスレッドの対象キャスト
+  fromUid: string
+  fromRole: 'store' | 'cast'
+  fromName: string
+  text: string
+  createdAt: Timestamp
 }
 
 /** stores/{storeId}/invites/{code}（F-15 招待コード） */

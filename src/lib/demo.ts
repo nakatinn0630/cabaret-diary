@@ -10,6 +10,8 @@ import type {
   Broadcast,
   Ranking,
   StoreCastSales,
+  Penalty,
+  StoreMessage,
 } from '../types'
 import type { ProfileSettings, MonthlyStats } from './sales'
 import type { MyMembership } from './stores'
@@ -257,9 +259,18 @@ export const demoMemberships: MyMembership[] = [
 export const demoStore: Store = { id: DEMO_STORE, name: 'CLUB LUXE 本店', createdBy: DEMO_UID }
 export const demoStoreMembers: Membership[] = [
   { uid: DEMO_UID, role: 'manager', displayName: 'れいな', joinedAt: ts(now - 120 * day), active: true },
-  { uid: 'm_mio', role: 'cast', displayName: 'みお', joinedAt: ts(now - 80 * day), active: true },
-  { uid: 'm_anna', role: 'cast', displayName: 'あんな', joinedAt: ts(now - 60 * day), active: true },
+  { uid: 'm_mio', role: 'cast', displayName: 'みお', assignedKurofuku: 'm_sato', monthlyQuota: 2000000, joinedAt: ts(now - 80 * day), active: true },
+  { uid: 'm_anna', role: 'cast', displayName: 'あんな', assignedKurofuku: 'm_sato', monthlyQuota: 1500000, joinedAt: ts(now - 60 * day), active: true },
   { uid: 'm_sato', role: 'kurofuku', displayName: '佐藤', joinedAt: ts(now - 150 * day), active: true },
+]
+export const demoPenalties: Penalty[] = [
+  { id: 'p1', castUid: 'm_mio', amount: 3000, reason: '遅刻（15分）', paid: false, createdBy: DEMO_UID, createdAt: ts(now - 3 * day) },
+  { id: 'p2', castUid: 'm_anna', amount: 5000, reason: '当日欠勤', paid: true, createdBy: DEMO_UID, createdAt: ts(now - 12 * day) },
+]
+export const demoStoreMessages: StoreMessage[] = [
+  { id: 'sm1', castUid: 'm_mio', fromUid: DEMO_UID, fromRole: 'store', fromName: '店長', text: '今週末の白ドレスDAY、ドレスコード白でお願いします🤍', createdAt: ts(now - 2 * day) },
+  { id: 'sm2', castUid: 'm_mio', fromUid: 'm_mio', fromRole: 'cast', fromName: 'みお', text: '了解です！タカさん同伴で入れそうです🍾', createdAt: ts(now - 2 * day + 3600000) },
+  { id: 'sm3', castUid: 'm_mio', fromUid: DEMO_UID, fromRole: 'store', fromName: '店長', text: 'ありがとう！助かります。', createdAt: ts(now - 2 * day + 7200000) },
 ]
 export const demoBroadcasts: Broadcast[] = [
   { id: 'b1', type: 'event', title: 'サマーイベント「白ドレスDAY」', body: 'ドレスコード白。シャンパンバック20%。', audience: 'all', eventDate: ts(now + 8 * day), createdBy: DEMO_UID, createdAt: ts(now - 2 * day) },

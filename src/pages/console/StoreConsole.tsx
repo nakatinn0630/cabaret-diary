@@ -8,6 +8,15 @@ import {
   createInvite,
   confirmCastSales,
   publishRanking,
+  assignKurofuku,
+  setCastQuota,
+  addPenalty,
+  usePenalties,
+  useMyPenalties,
+  setPenaltyPaid,
+  deletePenalty,
+  sendStoreMessage,
+  useStoreMessages,
   useBroadcasts,
   useMemberships,
   useRankings,
@@ -15,7 +24,7 @@ import {
   useStoreMonthSales,
   type NewBroadcast,
 } from '../../lib/stores'
-import type { BroadcastType, Membership, RankingVisibility, SalesFigures } from '../../types'
+import type { BroadcastType, Membership, Penalty, RankingVisibility, SalesFigures } from '../../types'
 import {
   Header,
   Main,
@@ -74,6 +83,18 @@ export default function StoreConsole() {
   const [tab, setTab] = useState<Tab>('broadcast')
 
   const casts = members.filter((m) => m.role === 'cast')
+
+  // キャスト本人が開いた場合は、管理タブではなく本人向けビュー（担当/ノルマ/罰金/売上/連絡）を表示。
+  if (myRole === 'cast') {
+    return (
+      <div className="mx-auto flex h-full max-w-2xl flex-col bg-night/[0.03] text-night dark:bg-[#151226]/60 dark:text-white">
+        <Header title={store?.name ?? '店舗'} back onBack={() => navigate('/console')} right={<span className={`text-[12px] ${subTx}`}>キャスト</span>} />
+        <Main className="!space-y-2.5">
+          {storeId && user && <CastStoreView storeId={storeId} uid={user.uid} members={members} />}
+        </Main>
+      </div>
+    )
+  }
 
   return (
     <div className="mx-auto flex h-full max-w-2xl flex-col bg-night/[0.03] text-night dark:bg-[#151226]/60 dark:text-white">
@@ -248,17 +269,185 @@ function MembersTab({
       {members.length === 0 ? (
         <Empty>メンバーがいません。</Empty>
       ) : (
-        members.map((m) => (
-          <Card key={m.uid} className="px-4 py-3 flex items-center gap-3 !rounded-xl">
-            <Avatar name={m.displayName} size={36} />
-            <span className="text-[14px] font-semibold flex-1">{m.displayName}</span>
-            <Chip className={m.role === 'kurofuku' ? 'border-night/20 dark:border-white/20' : `border-gold/40 bg-gold/10 ${goldTx}`}>
-              {ROLE_LABEL[m.role] ?? m.role}
-            </Chip>
-          </Card>
-        ))
+        members.map((m) =>
+          m.role === 'cast' ? (
+            <CastManageCard key={m.uid} storeId={storeId} cast={m} members={members} canManage={isManager} />
+          ) : (
+            <Card key={m.uid} className="px-4 py-3 flex items-center gap-3 !rounded-xl">
+              <Avatar name={m.displayName} size={36} />
+              <span className="text-[14px] font-semibold flex-1">{m.displayName}</span>
+              <Chip className="border-night/20 dark:border-white/20">{ROLE_LABEL[m.role] ?? m.role}</Chip>
+            </Card>
+          ),
+        )
       )}
     </>
+  )
+}
+
+// キャスト1人分の管理カード：担当黒服・ノルマ・罰金・連絡（F-15b/F-20/F-21）
+function CastManageCard({
+  storeId,
+  cast,
+  members,
+  canManage,
+}: {
+  storeId: string
+  cast: Membership
+  members: Membership[]
+  canManage: boolean
+}) {
+  const toast = useToast()
+  const [open, setOpen] = useState(false)
+  const staff = members.filter((m) => m.role === 'kurofuku' || m.role === 'manager')
+  const kurofukuName = members.find((m) => m.uid === cast.assignedKurofuku)?.displayName
+  const [quota, setQuota] = useState(cast.monthlyQuota ? String(cast.monthlyQuota) : '')
+
+  const penalties = usePenalties(storeId).filter((p) => p.castUid === cast.uid)
+  const msgs = useStoreMessages(storeId, open ? cast.uid : undefined)
+  const [penAmt, setPenAmt] = useState('')
+  const [penReason, setPenReason] = useState('')
+  const [msg, setMsg] = useState('')
+
+  const saveQuota = async () => {
+    await setCastQuota(storeId, cast.uid, Number(quota) || 0)
+    toast('ノルマを保存しました ✓')
+  }
+  const assign = async (uid: string) => {
+    await assignKurofuku(storeId, cast.uid, uid)
+    toast(uid ? '担当黒服を設定しました ✓' : '担当を解除しました')
+  }
+  const addPen = async () => {
+    if (!penAmt || !penReason.trim()) return
+    await addPenalty(storeId, cast.uid, Number(penAmt), penReason.trim())
+    setPenAmt('')
+    setPenReason('')
+    toast('罰金を登録しました')
+  }
+  const send = async () => {
+    const t = msg.trim()
+    if (!t) return
+    setMsg('')
+    await sendStoreMessage(storeId, cast.uid, t, 'store')
+  }
+
+  const penTotal = penalties.filter((p) => !p.paid).reduce((s, p) => s + p.amount, 0)
+
+  return (
+    <Card className="!rounded-xl overflow-hidden">
+      <button type="button" onClick={() => setOpen((o) => !o)} className="w-full px-4 py-3 flex items-center gap-3 text-left">
+        <Avatar name={cast.displayName} size={36} />
+        <div className="flex-1 min-w-0">
+          <p className="text-[14px] font-semibold">{cast.displayName}</p>
+          <p className={`text-[11px] ${subTx}`}>
+            担当: {kurofukuName ?? '未設定'}
+            {cast.monthlyQuota ? ` · ノルマ ${yen(cast.monthlyQuota)}` : ''}
+            {penTotal > 0 ? ` · 未払い罰金 ${yen(penTotal)}` : ''}
+          </p>
+        </div>
+        <span className={subTx}>{open ? '▲' : '▼'}</span>
+      </button>
+
+      {open && (
+        <div className="px-4 pb-4 space-y-4 border-t border-night/5 dark:border-white/5 pt-3">
+          {!canManage && <p className={`text-[11px] ${subTx}`}>※ 設定変更は店長のみ。閲覧のみ可能です。</p>}
+
+          {/* 担当黒服 */}
+          <Field label="担当黒服">
+            <select
+              value={cast.assignedKurofuku ?? ''}
+              disabled={!canManage}
+              onChange={(e) => void assign(e.target.value)}
+              className={inputCls}
+            >
+              <option value="">未設定</option>
+              {staff.map((s) => (
+                <option key={s.uid} value={s.uid}>
+                  {s.displayName}（{ROLE_LABEL[s.role]}）
+                </option>
+              ))}
+            </select>
+          </Field>
+
+          {/* ノルマ */}
+          <Field label="今月のノルマ（売上目標・円）">
+            <div className="flex gap-2">
+              <input
+                type="number"
+                value={quota}
+                disabled={!canManage}
+                onChange={(e) => setQuota(e.target.value)}
+                className={`${inputCls} min-w-0 flex-1`}
+                placeholder="2000000"
+              />
+              {canManage && (
+                <button type="button" onClick={() => void saveQuota()} className="rounded-xl bg-gold px-4 text-[13px] font-bold text-night">
+                  保存
+                </button>
+              )}
+            </div>
+          </Field>
+
+          {/* 罰金 */}
+          <div className="space-y-2">
+            <p className="text-[12px] font-semibold">罰金</p>
+            {penalties.length === 0 ? (
+              <p className={`text-[12px] ${subTx}`}>登録された罰金はありません。</p>
+            ) : (
+              penalties.map((p) => (
+                <div key={p.id} className="flex items-center gap-2 text-[13px]">
+                  <span className={`font-serif font-bold ${p.paid ? subTx : 'text-rose'}`}>{yen(p.amount)}</span>
+                  <span className={`flex-1 truncate ${subTx}`}>{p.reason}</span>
+                  {canManage && (
+                    <>
+                      <button type="button" onClick={() => void setPenaltyPaid(storeId, p.id, !p.paid)} className={`text-[11px] font-bold ${p.paid ? subTx : goldTx}`}>
+                        {p.paid ? '支払済' : '未払い→済'}
+                      </button>
+                      <button type="button" onClick={() => void deletePenalty(storeId, p.id)} aria-label="削除" className="text-[11px] text-rose">
+                        削除
+                      </button>
+                    </>
+                  )}
+                </div>
+              ))
+            )}
+            {canManage && (
+              <div className="flex gap-2">
+                <input type="number" value={penAmt} onChange={(e) => setPenAmt(e.target.value)} placeholder="金額" className={`${inputCls} min-w-0 w-24`} />
+                <input value={penReason} onChange={(e) => setPenReason(e.target.value)} placeholder="理由（遅刻 等）" className={`${inputCls} min-w-0 flex-1`} />
+                <button type="button" onClick={() => void addPen()} className="rounded-xl border border-night/15 dark:border-white/20 px-3 text-[13px] font-bold">
+                  追加
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* 連絡（F-20） */}
+          <div className="space-y-2">
+            <p className="text-[12px] font-semibold">連絡（本人と店のみ）</p>
+            <div className="space-y-1.5 max-h-44 overflow-y-auto">
+              {msgs.length === 0 ? (
+                <p className={`text-[12px] ${subTx}`}>まだやり取りはありません。</p>
+              ) : (
+                msgs.map((mm) => (
+                  <div key={mm.id} className={`flex ${mm.fromRole === 'store' ? 'justify-end' : 'justify-start'}`}>
+                    <span className={`max-w-[80%] rounded-2xl px-3 py-1.5 text-[12px] ${mm.fromRole === 'store' ? 'bg-gold text-night' : 'bg-night/10 dark:bg-white/10'}`}>
+                      {mm.text}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="flex gap-2">
+              <input value={msg} onChange={(e) => setMsg(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void send()} placeholder="このキャストへ連絡…" className={`${inputCls} min-w-0 flex-1`} />
+              <button type="button" onClick={() => void send()} className="rounded-xl bg-gold px-4 text-[13px] font-bold text-night">
+                送信
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </Card>
   )
 }
 
@@ -445,5 +634,94 @@ function Num({ label, value, onChange }: { label: string; value: number; onChang
         className="w-full rounded-xl border px-3 py-2 text-[16px] bg-white/70 dark:bg-white/[0.07] border-night/10 dark:border-white/15 outline-none focus:border-gold"
       />
     </label>
+  )
+}
+
+// キャスト本人向け：店からの担当・ノルマ・罰金・確定売上と、店への連絡（F-20/F-21）
+function CastStoreView({ storeId, uid, members }: { storeId: string; uid: string; members: Membership[] }) {
+  const me = members.find((m) => m.uid === uid)
+  const kurofuku = members.find((m) => m.uid === me?.assignedKurofuku)
+  const penalties = useMyPenalties(storeId)
+  const sales = useStoreMonthSales(storeId, currentMonthKey()).find((s) => s.uid === uid)
+  const msgs = useStoreMessages(storeId, uid)
+  const [msg, setMsg] = useState('')
+  const penUnpaid = penalties.filter((p) => !p.paid).reduce((s, p) => s + p.amount, 0)
+
+  const send = async () => {
+    const t = msg.trim()
+    if (!t) return
+    setMsg('')
+    await sendStoreMessage(storeId, uid, t, 'cast')
+  }
+
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-2.5">
+        <Card className="p-4 !rounded-xl">
+          <p className={`text-[10px] tracking-widest ${subTx}`}>担当黒服</p>
+          <p className="text-[16px] font-bold">{kurofuku?.displayName ?? '未設定'}</p>
+        </Card>
+        <Card className="p-4 !rounded-xl">
+          <p className={`text-[10px] tracking-widest ${subTx}`}>今月のノルマ</p>
+          <p className={`text-[16px] font-serif font-bold ${goldTx}`}>{me?.monthlyQuota ? yen(me.monthlyQuota) : '—'}</p>
+        </Card>
+        <Card className="p-4 !rounded-xl">
+          <p className={`text-[10px] tracking-widest ${subTx}`}>店確定の売上</p>
+          <p className="text-[16px] font-serif font-bold">{sales ? yen(sales.figures.totalSales) : '未確定'}</p>
+        </Card>
+        <Card className="p-4 !rounded-xl">
+          <p className={`text-[10px] tracking-widest ${subTx}`}>未払い罰金</p>
+          <p className={`text-[16px] font-serif font-bold ${penUnpaid > 0 ? 'text-rose' : ''}`}>{yen(penUnpaid)}</p>
+        </Card>
+      </div>
+
+      {me?.monthlyQuota && sales && (
+        <Card className="p-4 !rounded-xl space-y-1.5">
+          <SectionTitle>ノルマ達成状況</SectionTitle>
+          <div className="h-2 rounded-full bg-night/10 dark:bg-white/10">
+            <div className="h-full rounded-full bg-gradient-to-r from-gold to-rose" style={{ width: `${Math.min(100, (sales.figures.totalSales / me.monthlyQuota) * 100)}%` }} />
+          </div>
+          <p className={`text-[12px] ${subTx}`}>
+            {yen(sales.figures.totalSales)} / {yen(me.monthlyQuota)}（{Math.round((sales.figures.totalSales / me.monthlyQuota) * 100)}%）
+          </p>
+        </Card>
+      )}
+
+      {penalties.length > 0 && (
+        <Card className="p-4 !rounded-xl space-y-2">
+          <SectionTitle>罰金の明細</SectionTitle>
+          {penalties.map((p: Penalty) => (
+            <div key={p.id} className="flex items-center gap-2 text-[13px]">
+              <span className={`font-serif font-bold ${p.paid ? subTx : 'text-rose'}`}>{yen(p.amount)}</span>
+              <span className={`flex-1 truncate ${subTx}`}>{p.reason}</span>
+              <Chip className={p.paid ? 'border-night/15 dark:border-white/15' : 'border-rose/40 text-rose'}>{p.paid ? '支払済' : '未払い'}</Chip>
+            </div>
+          ))}
+        </Card>
+      )}
+
+      <Card className="p-4 !rounded-xl space-y-2">
+        <SectionTitle>店への連絡</SectionTitle>
+        <div className="space-y-1.5 max-h-56 overflow-y-auto">
+          {msgs.length === 0 ? (
+            <p className={`text-[12px] ${subTx}`}>まだやり取りはありません。要望や相談を送れます（本人と店のみ閲覧）。</p>
+          ) : (
+            msgs.map((mm) => (
+              <div key={mm.id} className={`flex ${mm.fromRole === 'cast' ? 'justify-end' : 'justify-start'}`}>
+                <span className={`max-w-[80%] rounded-2xl px-3 py-1.5 text-[12px] ${mm.fromRole === 'cast' ? 'bg-gold text-night' : 'bg-night/10 dark:bg-white/10'}`}>
+                  {mm.text}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+        <div className="flex gap-2">
+          <input value={msg} onChange={(e) => setMsg(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void send()} placeholder="店への連絡・要望…" className={`${inputCls} min-w-0 flex-1`} />
+          <button type="button" onClick={() => void send()} className="rounded-xl bg-gold px-4 text-[13px] font-bold text-night">
+            送信
+          </button>
+        </div>
+      </Card>
+    </>
   )
 }

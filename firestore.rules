@@ -60,6 +60,22 @@ service cloud.firestore {
         allow read: if isMember();
         allow write: if isManager();
       }
+
+      // 罰金（F-21）: 本人＝自分の分のみ閲覧、店スタッフ（店長/黒服）が発行・更新・削除。
+      match /penalties/{pid} {
+        allow read: if isStaff() || (signedIn() && resource.data.castUid == request.auth.uid);
+        allow create, update, delete: if isStaff();
+      }
+
+      // 店舗⇄キャスト連絡（F-20）: 本人と店のみ可視。
+      // 閲覧: スタッフ、または自分宛スレッド（castUid==自分）。
+      // 投稿: スタッフ（誰宛でも）、またはキャスト本人（自分のスレッドかつ差出人=自分）。
+      match /messages/{mid} {
+        allow read: if isStaff() || (signedIn() && resource.data.castUid == request.auth.uid);
+        allow create: if isStaff()
+          || (isMember() && request.resource.data.castUid == request.auth.uid
+              && request.resource.data.fromUid == request.auth.uid);
+      }
     }
   }
 }
