@@ -100,6 +100,8 @@ export default function Consult() {
             よう、俺がAI黒服の「クロ」だ。
             <br />
             接客も売上も、しんどい話も、まず聞くぞ。遠慮するな。
+            <br />
+            <span className="text-[11px] text-white/35">※相談はこの端末内だけに保存され、店や他の人には見えません（機種変更・キャッシュ削除で消えます）。</span>
           </p>
         )}
 

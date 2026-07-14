@@ -201,6 +201,9 @@ export default function Compatibility() {
               )}
             </Field>
 
+            <p className={`text-[11px] ${subTx}`}>
+              ※ 鑑定結果はこの端末内にのみ保存されます（DBには保存しません）。選んだ「注意点」だけが顧客カードに反映されます。
+            </p>
             <button
               type="button"
               onClick={() => void save()}

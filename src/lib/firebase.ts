@@ -1,6 +1,12 @@
 import { initializeApp } from 'firebase/app'
 import { getAuth, GoogleAuthProvider, type Auth } from 'firebase/auth'
-import { getFirestore, type Firestore } from 'firebase/firestore'
+import {
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  type Firestore,
+} from 'firebase/firestore'
 
 // Firebase設定は環境変数から注入する（.env参照。値はコミットしない）。
 // Firebaseプロジェクト: points-optimizer-app / asia-northeast1
@@ -18,7 +24,20 @@ export const isFirebaseConfigured = Boolean(firebaseConfig.apiKey && firebaseCon
 
 const app = isFirebaseConfigured ? initializeApp(firebaseConfig) : undefined
 export const auth: Auth = app ? getAuth(app) : (null as unknown as Auth)
-export const db: Firestore = app ? getFirestore(app) : (null as unknown as Firestore)
+
+// オフライン対応: IndexedDBの永続キャッシュを有効化。電波が悪くても読み書きが
+// ローカルにキューされ、再接続時に自動同期される（P1: オフライン書き込み失敗の解消）。
+function makeDb(a: NonNullable<typeof app>): Firestore {
+  try {
+    return initializeFirestore(a, {
+      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+    })
+  } catch {
+    // 一部ブラウザ（プライベートモード等）でIndexedDB不可の場合は通常初期化にフォールバック
+    return getFirestore(a)
+  }
+}
+export const db: Firestore = app ? makeDb(app) : (null as unknown as Firestore)
 
 // SEC-01: 認証はGoogle OAuthを標準とする。
 // 初回ログインは標準スコープ(email/profile)のみ＝センシティブ権限を含まないため、

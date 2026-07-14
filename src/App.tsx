@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from './contexts/AuthContext'
 import { enableDemo, disableDemo, demoActive } from './lib/demo'
 import { showsCast, showsStore } from './lib/surface'
+import { UpdatePrompt } from './components/UpdatePrompt'
 import LoginPage from './pages/LoginPage'
 import CastLayout from './pages/cast/CastLayout'
 import CastHome from './pages/cast/CastHome'
@@ -67,6 +68,7 @@ export default function App() {
   const fallbackTo = cast ? '/' : '/console'
   return (
     <>
+      <UpdatePrompt />
       <DemoBadge />
       <Routes>
         <Route path="/demo" element={<DemoEntry />} />

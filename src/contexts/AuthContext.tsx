@@ -17,11 +17,15 @@ type AuthState = {
   loading: boolean
   /** F-04 Googleカレンダー連携用のアクセストークン（サインイン/再連携時のみ取得。リロードで消える） */
   googleAccessToken: string | null
+  /** 過去にカレンダー連携したか（永続）。true かつ token 無し＝リロードで切れた状態。 */
+  calendarLinked: boolean
   signInWithGoogle: () => Promise<void>
   /** カレンダー連携のためトークンを再取得（期限切れ・リロード後に使う） */
   reconnectGoogle: () => Promise<void>
   signOut: () => Promise<void>
 }
+
+const CAL_LINKED_KEY = 'kyabacho_cal_linked'
 
 const AuthContext = createContext<AuthState | undefined>(undefined)
 
@@ -29,6 +33,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(null)
+  const [calendarLinked, setCalendarLinked] = useState<boolean>(
+    () => typeof localStorage !== 'undefined' && localStorage.getItem(CAL_LINKED_KEY) === '1',
+  )
 
   useEffect(() => {
     if (demoActive()) {
@@ -57,6 +64,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const result = await signInWithPopup(auth, provider)
     const cred = GoogleAuthProvider.credentialFromResult(result)
     setGoogleAccessToken(cred?.accessToken ?? null)
+    if (withCalendar && cred?.accessToken) {
+      setCalendarLinked(true)
+      localStorage.setItem(CAL_LINKED_KEY, '1')
+    }
   }
 
   const signInWithGoogle = async () => {
@@ -80,12 +91,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     if (!isFirebaseConfigured) return
     setGoogleAccessToken(null)
+    setCalendarLinked(false)
+    localStorage.removeItem(CAL_LINKED_KEY)
     await fbSignOut(auth)
   }
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, googleAccessToken, signInWithGoogle, reconnectGoogle, signOut }}
+      value={{ user, loading, googleAccessToken, calendarLinked, signInWithGoogle, reconnectGoogle, signOut }}
     >
       {children}
     </AuthContext.Provider>

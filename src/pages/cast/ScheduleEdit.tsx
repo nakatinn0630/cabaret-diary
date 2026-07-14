@@ -58,6 +58,12 @@ export default function ScheduleEdit() {
   const [pasteOpen, setPasteOpen] = useState(false)
   const [pasteText, setPasteText] = useState('')
   const [importing, setImporting] = useState(false)
+  const [dirty, setDirty] = useState(false)
+
+  const goBack = () => {
+    if (dirty && !confirm('入力内容が保存されていません。破棄して戻りますか？')) return
+    navigate('/schedule')
+  }
 
   // LINE等から貼り付けた文章を解析して日付・時刻・お客様・メモに反映。
   // まずAI（Gemini/Groq等）で構造化を試み、失敗時は正規表現にフォールバック。
@@ -98,6 +104,7 @@ export default function ScheduleEdit() {
       }
     }
     setMemo(text)
+    setDirty(true)
     setImporting(false)
     setPasteOpen(false)
     toast(
@@ -175,7 +182,7 @@ export default function ScheduleEdit() {
       <Header
         title={editing ? '予定を編集' : '予定を追加'}
         back
-        onBack={() => navigate('/schedule')}
+        onBack={goBack}
         right={
           <button
             type="button"
@@ -234,7 +241,7 @@ export default function ScheduleEdit() {
           <Seg<ScheduleType>
             options={TYPES.map((t) => ({ v: t, label: `${SCHED_ICON[t]} ${SCHEDULE_LABEL[t]}` }))}
             value={type}
-            onChange={setType}
+            onChange={(v) => { setDirty(true); setType(v) }}
           />
         </Field>
 
@@ -254,7 +261,7 @@ export default function ScheduleEdit() {
                   <button
                     key={c.id}
                     type="button"
-                    onClick={() => setCustomerId(customerId === c.id ? '' : c.id)}
+                    onClick={() => { setDirty(true); setCustomerId(customerId === c.id ? '' : c.id) }}
                     className={`px-4 py-2 rounded-full text-[13px] font-semibold border transition min-h-[40px] ${
                       customerId === c.id
                         ? 'bg-rose text-white border-rose shadow'
@@ -270,21 +277,21 @@ export default function ScheduleEdit() {
         )}
 
         <Field label="日付">
-          <DateSelect value={date} onChange={setDate} fromYear={nowYear - 1} toYear={nowYear + 2} />
+          <DateSelect value={date} onChange={(v) => { setDirty(true); setDate(v) }} fromYear={nowYear - 1} toYear={nowYear + 2} />
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="開始">
-            <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className={inputCls} />
+            <input type="time" value={startTime} onChange={(e) => { setDirty(true); setStartTime(e.target.value) }} className={inputCls} />
           </Field>
           <Field label="終了">
-            <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className={inputCls} />
+            <input type="time" value={endTime} onChange={(e) => { setDirty(true); setEndTime(e.target.value) }} className={inputCls} />
           </Field>
         </div>
 
         <Field label="メモ">
           <textarea
             value={memo}
-            onChange={(e) => setMemo(e.target.value)}
+            onChange={(e) => { setDirty(true); setMemo(e.target.value) }}
             rows={5}
             className={`${inputCls} leading-relaxed`}
             placeholder="場所・約束ごと など"

@@ -23,7 +23,7 @@ function dayKey(t: Timestamp): string {
 }
 
 export default function Schedule() {
-  const { googleAccessToken, reconnectGoogle } = useAuth()
+  const { googleAccessToken, calendarLinked, reconnectGoogle } = useAuth()
   const { customers } = useCustomers()
   const { schedules, loading } = useSchedules()
   const [connecting, setConnecting] = useState(false)
@@ -114,6 +114,16 @@ export default function Schedule() {
           <Chip className="border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 font-bold">
             ✓ Googleカレンダー連携中
           </Chip>
+        ) : calendarLinked ? (
+          // リロードでトークンが切れた状態。連携は記憶しているので再連携を促す。
+          <button
+            type="button"
+            onClick={() => void connect()}
+            disabled={connecting}
+            className="text-[11px] px-2.5 py-1.5 rounded-full border border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-300 font-bold disabled:opacity-60"
+          >
+            {connecting ? '再連携中…' : '⚠ カレンダー連携が切れています・タップで再連携'}
+          </button>
         ) : (
           <button
             type="button"

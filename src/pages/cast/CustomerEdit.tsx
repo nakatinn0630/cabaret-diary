@@ -37,6 +37,7 @@ export default function CustomerEdit() {
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState(false)
   const [shake, setShake] = useState(0)
+  const [dirty, setDirty] = useState(false)
 
   useEffect(() => {
     if (editing && customer) {
@@ -80,14 +81,18 @@ export default function CustomerEdit() {
     }
   }, [editing, customer, unlocked])
 
-  const set = <K extends keyof NewCustomer>(key: K, value: NewCustomer[K]) =>
+  const set = <K extends keyof NewCustomer>(key: K, value: NewCustomer[K]) => {
+    setDirty(true)
     setForm((f) => ({ ...f, [key]: value }))
+  }
 
-  const togglePayment = (p: PaymentMethod) =>
+  const togglePayment = (p: PaymentMethod) => {
+    setDirty(true)
     setForm((f) => {
       const cur = f.paymentMethods ?? []
       return { ...f, paymentMethods: cur.includes(p) ? cur.filter((x) => x !== p) : [...cur, p] }
     })
+  }
 
   const splitList = (s: string) => s.split(/[、,]/).map((t) => t.trim()).filter(Boolean)
 
@@ -121,12 +126,15 @@ export default function CustomerEdit() {
     } catch (e) {
       setErr(false)
       setShake((s) => s + 1)
-      alert(e instanceof Error ? e.message : '保存に失敗しました。')
+      toast(e instanceof Error ? e.message : '保存に失敗しました。')
       setSaving(false)
     }
   }
 
-  const cancel = () => navigate(editing && cid ? `/customers/${cid}` : '/customers')
+  const cancel = () => {
+    if (dirty && !confirm('編集内容が保存されていません。破棄して戻りますか？')) return
+    navigate(editing && cid ? `/customers/${cid}` : '/customers')
+  }
 
   return (
     <div className="h-full flex flex-col">
@@ -168,10 +176,19 @@ export default function CustomerEdit() {
             type="tel"
             inputMode="tel"
             value={form.phone ?? ''}
-            onChange={(e) => set('phone', e.target.value)}
+            // 電話として無効な文字（かな・英字等）は弾く。数字・+・-・()・空白のみ許可。
+            onChange={(e) => set('phone', e.target.value.replace(/[^\d+\-() 　]/g, ''))}
             className={inputCls}
             placeholder="090-0000-0000"
           />
+          {(() => {
+            const digits = (form.phone ?? '').replace(/\D/g, '')
+            return digits.length > 0 && digits.length < 10 ? (
+              <span className={`block text-[11px] text-amber-600 dark:text-amber-400`}>
+                桁数が少ないようです（携帯なら11桁）。番号をご確認ください。
+              </span>
+            ) : null
+          })()}
         </Field>
         <Field label="誕生日">
           <DateSelect
@@ -195,7 +212,10 @@ export default function CustomerEdit() {
           <Field label={unlocked ? '本名（暗号化して保存）' : '本名'}>
             <input
               value={realNameInput}
-              onChange={(e) => setRealNameInput(e.target.value)}
+              onChange={(e) => {
+                setDirty(true)
+                setRealNameInput(e.target.value)
+              }}
               className={inputCls}
               placeholder="任意"
               autoComplete="off"
@@ -228,27 +248,27 @@ export default function CustomerEdit() {
         </Field>
 
         <Field label="ランク">
-          <Seg options={RANK_OPTIONS} value={rank} onChange={setRank} />
+          <Seg options={RANK_OPTIONS} value={rank} onChange={(v) => { setDirty(true); setRank(v) }} />
         </Field>
         <Field label="支払方法（複数可）">
           <MultiPill options={PAY_OPTIONS} values={form.paymentMethods ?? []} onToggle={togglePayment} />
         </Field>
 
         <Field label="相性（向き不向き）">
-          <Seg options={FIT_LEVELS} value={fitLevel} onChange={setFitLevel} />
+          <Seg options={FIT_LEVELS} value={fitLevel} onChange={(v) => { setDirty(true); setFitLevel(v) }} />
         </Field>
         <Field label="消耗度">
-          <Seg options={FATIGUE_LEVELS} value={fitFatigue} onChange={setFitFatigue} />
+          <Seg options={FATIGUE_LEVELS} value={fitFatigue} onChange={(v) => { setDirty(true); setFitFatigue(v) }} />
         </Field>
         <Field label="相性の理由タグ（読点区切り）">
-          <input value={fitReasonsText} onChange={(e) => setFitReasonsText(e.target.value)} className={inputCls} placeholder="会話が弾む、聞き役が向く" />
+          <input value={fitReasonsText} onChange={(e) => { setDirty(true); setFitReasonsText(e.target.value) }} className={inputCls} placeholder="会話が弾む、聞き役が向く" />
         </Field>
 
         <Field label="タグ（読点区切り）">
-          <input value={tagsText} onChange={(e) => setTagsText(e.target.value)} className={inputCls} placeholder="太客、釣り" />
+          <input value={tagsText} onChange={(e) => { setDirty(true); setTagsText(e.target.value) }} className={inputCls} placeholder="太客、釣り" />
         </Field>
         <Field label="気をつけること（1行1件）">
-          <textarea value={cautionsText} onChange={(e) => setCautionsText(e.target.value)} rows={3} className={inputCls} placeholder="押しすぎると引く" />
+          <textarea value={cautionsText} onChange={(e) => { setDirty(true); setCautionsText(e.target.value) }} rows={3} className={inputCls} placeholder="押しすぎると引く" />
         </Field>
         <Field label="メモ">
           <textarea value={form.memo ?? ''} onChange={(e) => set('memo', e.target.value)} rows={3} className={inputCls} placeholder="自由メモ" />
