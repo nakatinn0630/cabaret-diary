@@ -5,6 +5,7 @@ import { enableDemo, disableDemo, demoActive } from './lib/demo'
 import { showsCast, showsStore } from './lib/surface'
 import { UpdatePrompt } from './components/UpdatePrompt'
 import LoginPage from './pages/LoginPage'
+import Legal from './pages/Legal'
 import CastLayout from './pages/cast/CastLayout'
 import CastHome from './pages/cast/CastHome'
 import CustomerList from './pages/cast/CustomerList'
@@ -73,6 +74,7 @@ export default function App() {
       <Routes>
         <Route path="/demo" element={<DemoEntry />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/legal" element={<Legal />} />
 
         {/* キャストアプリ（個人領域）。店舗サーフェスでは露出しない。 */}
         {cast && (

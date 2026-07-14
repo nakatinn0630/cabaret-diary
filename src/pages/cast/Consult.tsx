@@ -68,7 +68,9 @@ export default function Consult() {
         escalatedTo: res.escalate,
       })
     } catch (e) {
-      toast(e instanceof Error ? e.message : '相談AIに接続できませんでした。時間をおいて再度お試しください。')
+      // 失敗時は入力欄に文章を戻し、すぐ再送信できるようにする
+      setText(t)
+      toast(e instanceof Error ? e.message : '送信できませんでした。もう一度「↑」で送ってください。')
     } finally {
       setBusy(false)
     }

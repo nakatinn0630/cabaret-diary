@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Navigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { subTx } from '../components/ui'
 
@@ -52,7 +52,11 @@ export default function LoginPage() {
 
       {error && <p className="max-w-xs text-[12px] text-rose">{error}</p>}
       <p className={`max-w-xs text-[11px] leading-relaxed ${subTx}`}>
-        18歳未満の方はご利用いただけません。ログインで利用規約・プライバシーポリシーに同意したものとみなします。
+        18歳未満の方はご利用いただけません。ログインで
+        <Link to="/legal" className="font-semibold text-gold underline">
+          利用規約・プライバシーポリシー
+        </Link>
+        に同意したものとみなします。
       </p>
     </div>
   )

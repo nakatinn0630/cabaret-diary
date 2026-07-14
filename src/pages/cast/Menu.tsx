@@ -278,6 +278,9 @@ export default function Menu() {
         >
           ログアウト
         </button>
+        <Link to="/legal" className={`block text-center text-[12px] font-semibold text-gold`}>
+          プライバシーポリシー・利用規約
+        </Link>
         <p className={`text-center text-[11px] ${subTx}`}>キャバ帳 / Cabaret Diary v1.2</p>
       </Main>
     </div>
