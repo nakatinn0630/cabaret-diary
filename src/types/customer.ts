@@ -9,7 +9,7 @@ export type FitLevel = '得意' | '普通' | '苦手'
 /** F-13 接客後の消耗度 */
 export type Fatigue = '低' | '中' | '高'
 
-export type PaymentMethod = 'cash' | 'card' | 'urikake'
+export type PaymentMethod = 'cash' | 'card'
 
 export interface RankHistoryEntry {
   rank: CustomerRank
@@ -82,8 +82,8 @@ export interface Visit {
   bottles: Bottle[]
   isDohan: boolean
   isAfter: boolean
+  isShimei?: boolean // F-16 指名本数の自動集計用
   payment: PaymentMethod
-  urikakePaid?: boolean
   episodeMemo?: string
   photoRefs: string[] // Cloud Storage パス（本体は Storage）
   storeId?: string // どの店の売上か（F-16集計用）

@@ -20,7 +20,7 @@ import {
 import { yen, fmtMonthDay, daysUntilBirthday, tagColorClass } from '../../lib/format'
 import type { FitLevel, PaymentMethod } from '../../types'
 
-const PAY_LABEL: Record<PaymentMethod, string> = { cash: '現金', card: 'カード', urikake: '売掛' }
+const PAY_LABEL: Record<PaymentMethod, string> = { cash: '現金', card: 'カード' }
 const FIT_CLS: Record<FitLevel, string> = {
   得意: 'text-emerald-600 dark:text-emerald-300 bg-emerald-500/10 border-emerald-500/40',
   普通: `${goldTx} bg-gold/10 border-gold/40`,

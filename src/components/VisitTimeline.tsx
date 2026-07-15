@@ -2,7 +2,7 @@ import type { Visit, PaymentMethod } from '../types'
 import { yen, fmtDate } from '../lib/format'
 import { Chip, Empty, subTx, goldTx } from './ui'
 
-const PAY_LABEL: Record<PaymentMethod, string> = { cash: '現金', card: 'カード', urikake: '売掛' }
+const PAY_LABEL: Record<PaymentMethod, string> = { cash: '現金', card: 'カード' }
 
 // F-03 来店履歴の時系列表示（思い出タイムライン）
 export function VisitTimeline({ visits }: { visits: Visit[] }) {
@@ -11,11 +11,10 @@ export function VisitTimeline({ visits }: { visits: Visit[] }) {
   return (
     <>
       {visits.map((v, i) => {
-        const unpaid = v.payment === 'urikake' && v.urikakePaid !== true
         return (
           <div key={v.id} className="grid grid-cols-[16px_1fr] gap-3">
             <div className="flex flex-col items-center gap-1" aria-hidden="true">
-              <span className={`w-2.5 h-2.5 rounded-full mt-1 ${unpaid ? 'bg-rose' : 'bg-gold'}`}></span>
+              <span className="w-2.5 h-2.5 rounded-full mt-1 bg-gold"></span>
               {i < visits.length - 1 && <span className="w-px flex-1 bg-night/10 dark:bg-white/10"></span>}
             </div>
             <div className="pb-3 space-y-1.5 min-w-0">
@@ -37,14 +36,11 @@ export function VisitTimeline({ visits }: { visits: Visit[] }) {
                     アフター
                   </Chip>
                 )}
-                <Chip
-                  className={
-                    unpaid
-                      ? 'bg-rose text-white border-rose !text-[10px] font-bold'
-                      : `border-night/10 dark:border-white/15 ${subTx} !text-[10px] font-bold`
-                  }
-                >
-                  {unpaid ? '売掛未回収' : PAY_LABEL[v.payment]}
+                {v.isShimei && (
+                  <Chip className={`border-gold/40 bg-gold/10 ${goldTx} !text-[10px] font-bold`}>指名</Chip>
+                )}
+                <Chip className={`border-night/10 dark:border-white/15 ${subTx} !text-[10px] font-bold`}>
+                  {PAY_LABEL[v.payment]}
                 </Chip>
               </div>
               {v.bottles.map((b, bi) => (

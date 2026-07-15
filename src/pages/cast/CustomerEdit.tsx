@@ -13,7 +13,6 @@ const INCOME_OPTIONS: string[] = ['不明', '〜500万', '500〜1000万', '1000�
 const PAY_OPTIONS: { v: PaymentMethod; label: string }[] = [
   { v: 'cash', label: '現金' },
   { v: 'card', label: 'カード' },
-  { v: 'urikake', label: '売掛' },
 ]
 
 export default function CustomerEdit() {

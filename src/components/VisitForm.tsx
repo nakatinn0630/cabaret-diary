@@ -7,7 +7,6 @@ import type { Bottle, PaymentMethod } from '../types'
 const PAY_OPTIONS: { v: PaymentMethod; label: string }[] = [
   { v: 'cash', label: '現金' },
   { v: 'card', label: 'カード' },
-  { v: 'urikake', label: '売掛' },
 ]
 
 // F-03 来店登録（ボトムシート）
@@ -21,7 +20,7 @@ export function VisitForm({ cid, onClose }: { cid: string; onClose: () => void }
   const [payment, setPayment] = useState<PaymentMethod>('card')
   const [isDohan, setIsDohan] = useState(false)
   const [isAfter, setIsAfter] = useState(false)
-  const [urikakePaid, setUrikakePaid] = useState(false)
+  const [isShimei, setIsShimei] = useState(false)
   const [bottles, setBottles] = useState<Bottle[]>([])
   const [episodeMemo, setEpisodeMemo] = useState('')
   const [saving, setSaving] = useState(false)
@@ -47,7 +46,7 @@ export function VisitForm({ cid, onClose }: { cid: string; onClose: () => void }
         payment,
         isDohan,
         isAfter,
-        urikakePaid: payment === 'urikake' ? urikakePaid : undefined,
+        isShimei,
         bottles: bottles.filter((b) => b.name.trim()),
         episodeMemo: episodeMemo.trim() || undefined,
       })
@@ -122,16 +121,14 @@ export function VisitForm({ cid, onClose }: { cid: string; onClose: () => void }
           <span className="text-[14px] font-semibold">🌙 アフターあり</span>
           <Toggle on={isAfter} onChange={setIsAfter} label="アフター" />
         </div>
+        <div className="flex items-center justify-between">
+          <span className="text-[14px] font-semibold">⭐️ 指名</span>
+          <Toggle on={isShimei} onChange={setIsShimei} label="指名" />
+        </div>
 
         <Field label="支払方法">
           <Seg options={PAY_OPTIONS} value={payment} onChange={setPayment} />
         </Field>
-        {payment === 'urikake' && (
-          <div className="flex items-center justify-between">
-            <span className="text-[14px] font-semibold">売掛を回収済み</span>
-            <Toggle on={urikakePaid} onChange={setUrikakePaid} label="売掛回収済み" />
-          </div>
-        )}
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">

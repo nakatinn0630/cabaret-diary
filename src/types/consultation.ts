@@ -1,7 +1,7 @@
 import type { Timestamp } from './common'
 
 /** F-08 相談分類 */
-export type ConsultationCategory = '愚痴' | 'ストーカー' | '売掛詐欺' | 'メンタル'
+export type ConsultationCategory = '愚痴' | 'ストーカー' | '金銭トラブル' | 'メンタル'
 
 /** F-08 エスカレーション先（AIは警察通報を判断・発信しない。危険時は人間の担当・店舗へ誘導） */
 export type EscalationTarget = 'urgent' | 'store' | 'window'

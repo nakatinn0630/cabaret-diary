@@ -75,7 +75,7 @@ export const demoCustomers: Customer[] = [
     occupation: '会社経営',
     companyName: 'T商事',
     incomeRange: '3000万〜',
-    paymentMethods: ['card', 'urikake'],
+    paymentMethods: ['card'],
     tags: ['焼酎派', 'ゴルフ'],
     rank: 'VVIP',
     rankHistory: [],
@@ -86,7 +86,7 @@ export const demoCustomers: Customer[] = [
     visitCount: 23,
     lastVisitAt: ts(now - 20 * day),
     riskScore: 72,
-    riskFlags: ['売掛 ¥180,000 未回収', '来店間隔が平均の2倍に拡大', '深酒時に口調が荒くなる'],
+    riskFlags: ['来店間隔が平均の2倍に拡大', '深酒時に口調が荒くなる'],
     memo: '月末は連絡が返らない。',
     createdAt: ts(now - 300 * day),
     updatedAt: ts(now - 20 * day),
@@ -144,6 +144,7 @@ export const demoVisitsByCustomer: Record<string, Visit[]> = {
       bottles: [{ name: 'Dom Pérignon 白', price: 120000 }],
       isDohan: true,
       isAfter: false,
+      isShimei: true,
       payment: 'card',
       episodeMemo: '同伴で寿司。仕事の愚痴を聞いた。',
       photoRefs: [],
@@ -172,9 +173,9 @@ export const demoVisitsByCustomer: Record<string, Visit[]> = {
       bottles: [{ name: 'ドンペリ ゴールド', price: 180000 }],
       isDohan: false,
       isAfter: true,
-      payment: 'urikake',
-      urikakePaid: false,
-      episodeMemo: '売掛の回収日は今月末の約束。',
+      isShimei: true,
+      payment: 'card',
+      episodeMemo: 'アフターまで。羽振りが良いが少し強引。',
       photoRefs: [],
       createdAt: ts(now - 20 * day),
     },
@@ -206,7 +207,7 @@ const atToday = (h: number, m = 0) => {
 export const demoSchedules: Schedule[] = [
   { id: 'ds_1', type: 'dohan', customerId: 'demo_taka', start: atToday(18), end: atToday(20), memo: '寿司 まつむら' },
   { id: 'ds_2', type: 'shift', start: atToday(20), end: atToday(26 % 24) },
-  { id: 'ds_3', type: 'appointment', customerId: 'demo_ken', start: ts(now + 2 * day), end: ts(now + 2 * day + 3600000), memo: '売掛回収の約束' },
+  { id: 'ds_3', type: 'appointment', customerId: 'demo_ken', start: ts(now + 2 * day), end: ts(now + 2 * day + 3600000), memo: '来店の約束' },
   { id: 'ds_4', type: 'after', customerId: 'demo_yu', start: ts(now + 4 * day), end: ts(now + 4 * day + 7200000) },
 ]
 
@@ -219,11 +220,11 @@ export const demoProfile: ProfileSettings = {
   targetSales: 3200000,
   trialEndDate: ts(now + 10 * day),
   trialRaces: [
-    { id: 'r1', name: '看板レース', target: 5000000, current: 2450000, unit: '円' },
-    { id: 'r2', name: 'うちわレース', target: 40, current: 12, unit: '本' },
+    { id: 'r1', name: '看板レース', target: 5000000, current: 0, unit: '円', source: 'sales' },
+    { id: 'r2', name: 'うちわレース', target: 40, current: 0, unit: '本', source: 'shimei' },
   ],
 }
-export const demoMonthlyStats: MonthlyStats = { totalSales: 2450000, visitCount: 20, dohanCount: 6 }
+export const demoMonthlyStats: MonthlyStats = { totalSales: 2450000, visitCount: 20, dohanCount: 6, shimeiCount: 12 }
 export const demoShimeiCount = 12
 
 // ---- 黒服相談 ----

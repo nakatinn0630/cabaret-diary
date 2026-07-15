@@ -299,7 +299,7 @@ export async function parseScheduleAI(text: string, knownCustomers: string[] = [
 // ============================================================================
 // F-08 黒服機能（相談AI）
 // ============================================================================
-export type ConsultCategory = '愚痴' | 'ストーカー' | '売掛詐欺' | 'メンタル'
+export type ConsultCategory = '愚痴' | 'ストーカー' | '金銭トラブル' | 'メンタル'
 // AIは警察通報を判断・発信しない。危険・緊急('urgent')は人間の担当・店舗へ誘導する。
 export type EscalationTarget = 'urgent' | 'store' | 'window'
 
@@ -320,8 +320,8 @@ function detectCategory(text: string): { category?: ConsultCategory; escalate?: 
   // 暴力・ストーカー等の危険兆候 → 'urgent'（AIは通報せず、人間の担当・店舗へ即連絡を促す）
   if (/(ストーカー|つきまと|待ち伏せ|脅|怖い|尾行|合鍵|付きまと|殴|暴力|刃物|拉致|監禁|レイプ|死ね)/.test(text))
     return { category: 'ストーカー', escalate: 'urgent' }
-  if (/(売掛|詐欺|お金.*返|飛ばれ|持ち逃げ|未回収)/.test(text))
-    return { category: '売掛詐欺', escalate: 'store' }
+  if (/(詐欺|お金.*返|飛ばれ|持ち逃げ|立替|借金)/.test(text))
+    return { category: '金銭トラブル', escalate: 'store' }
   if (/(死にたい|消えたい|しんどい|辛|眠れ|限界|うつ)/.test(text))
     return { category: 'メンタル', escalate: 'window' }
   return { category: '愚痴' }

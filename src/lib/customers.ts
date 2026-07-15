@@ -67,8 +67,8 @@ export interface NewVisit {
   bottles?: Bottle[]
   isDohan?: boolean
   isAfter?: boolean
+  isShimei?: boolean
   payment: PaymentMethod
-  urikakePaid?: boolean
   episodeMemo?: string
   storeId?: string
 }
@@ -174,7 +174,6 @@ async function recomputeAggregates(uid: string, cid: string): Promise<void> {
       dateMs: (v.date as Timestamp)?.toMillis?.() ?? 0,
       amount: v.amount || 0,
       payment: v.payment,
-      urikakePaid: v.urikakePaid,
     })),
   })
   await updateDoc(customerRef(uid, cid), {
@@ -257,8 +256,8 @@ export async function addVisit(cid: string, v: NewVisit): Promise<void> {
     bottles: v.bottles ?? [],
     isDohan: v.isDohan ?? false,
     isAfter: v.isAfter ?? false,
+    isShimei: v.isShimei ?? false,
     payment: v.payment,
-    urikakePaid: v.urikakePaid ?? null,
     episodeMemo: v.episodeMemo ?? '',
     photoRefs: [],
     storeId: v.storeId ?? null,

@@ -20,6 +20,8 @@ export interface TrialRace {
   target: number
   current: number
   unit?: string // 例: 円 / 本 / pt（既定: 円）
+  /** 現在値の取得元。'sales'=今月売上に自動連動 / 'shimei'=指名本数に自動連動 / 既定=手動 */
+  source?: 'manual' | 'sales' | 'shimei'
 }
 
 export interface ProfileSettings {
@@ -45,6 +47,7 @@ export interface MonthlyStats {
   totalSales: number
   visitCount: number
   dohanCount: number
+  shimeiCount: number // 来店記録(isShimei)からの自動集計
 }
 
 /** 現在の 'YYYY-MM' */
@@ -106,7 +109,7 @@ export async function saveProfileSettings(patch: ProfileSettings): Promise<void>
 
 /** 当月の売上集計（全顧客の visits を collectionGroup で集計） */
 export function useMonthlyStats(monthKey: string): { stats: MonthlyStats; loading: boolean } {
-  const [stats, setStats] = useState<MonthlyStats>({ totalSales: 0, visitCount: 0, dohanCount: 0 })
+  const [stats, setStats] = useState<MonthlyStats>({ totalSales: 0, visitCount: 0, dohanCount: 0, shimeiCount: 0 })
   const [loading, setLoading] = useState(true)
   useEffect(() => {
     if (demoActive()) {
@@ -132,12 +135,14 @@ export function useMonthlyStats(monthKey: string): { stats: MonthlyStats; loadin
         if (!alive) return
         let totalSales = 0
         let dohanCount = 0
+        let shimeiCount = 0
         snap.forEach((d) => {
           const v = d.data()
           totalSales += v.amount || 0
           if (v.isDohan) dohanCount += 1
+          if (v.isShimei) shimeiCount += 1
         })
-        setStats({ totalSales, visitCount: snap.size, dohanCount })
+        setStats({ totalSales, visitCount: snap.size, dohanCount, shimeiCount })
         setLoading(false)
       })
       .catch(() => setLoading(false))

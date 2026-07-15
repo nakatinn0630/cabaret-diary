@@ -55,11 +55,15 @@ export default function SalesReport() {
   }))
   const rankTotal = byRank.reduce((a, x) => a + x.sum, 0)
 
+  // 指名本数：来店記録(isShimei)からの自動集計を基本とし、手動申告があれば上書き
+  const autoShimei = stats.shimeiCount
+  const effShimei = shimeiCount > 0 ? shimeiCount : autoShimei
+
   // 保証カウントダウン（残り日数）
   const guaranteeMs = settings.guaranteeEndDate?.toMillis?.()
   const daysLeft = guaranteeMs ? Math.max(0, Math.ceil((guaranteeMs - Date.now()) / DAY)) : undefined
   const weeksLeft = daysLeft ? Math.max(1, Math.round(daysLeft / 7)) : undefined
-  const remainingShimei = settings.targetShimei ? Math.max(0, settings.targetShimei - shimeiCount) : undefined
+  const remainingShimei = settings.targetShimei ? Math.max(0, settings.targetShimei - effShimei) : undefined
   const pacePerWeek = remainingShimei !== undefined && weeksLeft ? Math.ceil(remainingShimei / weeksLeft) : undefined
 
   // 目標売上に対する達成状況（保証カウントダウンのプログレスバー）
@@ -80,8 +84,12 @@ export default function SalesReport() {
 
   // 指名リング
   const shimeiTarget = settings.targetShimei
-  const ratio = shimeiTarget && shimeiTarget > 0 ? Math.min(1, shimeiCount / shimeiTarget) : 0
+  const ratio = shimeiTarget && shimeiTarget > 0 ? Math.min(1, effShimei / shimeiTarget) : 0
   const RING_C = 2 * Math.PI * 52
+
+  // レースの現在値：source が sales/shimei なら実績に自動連動
+  const raceCurrent = (r: TrialRace): number =>
+    r.source === 'sales' ? stats.totalSales : r.source === 'shimei' ? effShimei : r.current
 
   const openEdit = () => {
     setGuarantee(guaranteeMs ? new Date(guaranteeMs).toISOString().slice(0, 10) : '')
@@ -207,15 +215,20 @@ export default function SalesReport() {
             </button>
           ) : (
             trialRaces.map((r) => {
-              const pct = r.target > 0 ? Math.min(100, (r.current / r.target) * 100) : 0
-              const remain = Math.max(0, r.target - r.current)
+              const cur = raceCurrent(r)
+              const pct = r.target > 0 ? Math.min(100, (cur / r.target) * 100) : 0
+              const remain = Math.max(0, r.target - cur)
               const perDay = trialDaysLeft && trialDaysLeft > 0 && remain > 0 ? Math.ceil(remain / trialDaysLeft) : undefined
               return (
                 <div key={r.id} className="space-y-1">
                   <div className="flex items-baseline justify-between gap-2">
-                    <span className="text-[13px] font-bold truncate">{r.name}</span>
+                    <span className="text-[13px] font-bold truncate">
+                      {r.name}
+                      {r.source === 'sales' && <span className={`ml-1 text-[10px] ${subTx}`}>売上連動</span>}
+                      {r.source === 'shimei' && <span className={`ml-1 text-[10px] ${subTx}`}>指名連動</span>}
+                    </span>
                     <span className={`text-[12px] font-serif font-bold ${goldTx}`}>
-                      {fmtVal(r.current, r.unit)} <span className={`text-[11px] font-sans ${subTx}`}>/ {fmtVal(r.target, r.unit)}</span>
+                      {fmtVal(cur, r.unit)} <span className={`text-[11px] font-sans ${subTx}`}>/ {fmtVal(r.target, r.unit)}</span>
                     </span>
                   </div>
                   <div className="h-2 rounded-full bg-night/10 dark:bg-white/10">
@@ -237,7 +250,7 @@ export default function SalesReport() {
         {/* 指名リング + 主要数値 */}
         <div className="grid grid-cols-2 gap-3">
           <Card className="p-4 flex flex-col items-center gap-1">
-            <svg width="120" height="120" viewBox="0 0 120 120" role="img" aria-label={`指名 ${shimeiCount}/${shimeiTarget ?? 0}`}>
+            <svg width="120" height="120" viewBox="0 0 120 120" role="img" aria-label={`指名 ${effShimei}/${shimeiTarget ?? 0}`}>
               <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(120,110,150,0.2)" strokeWidth="10" />
               <circle
                 cx="60"
@@ -251,7 +264,7 @@ export default function SalesReport() {
                 transform="rotate(-90 60 60)"
               />
               <text x="60" y="57" textAnchor="middle" fontSize="22" fontWeight="700" fill="currentColor" fontFamily="'Zen Old Mincho',serif">
-                {shimeiCount}
+                {effShimei}
               </text>
               <text x="60" y="76" textAnchor="middle" fontSize="11" fill="#8f86a8">
                 / {shimeiTarget ?? '—'}本
@@ -347,10 +360,13 @@ export default function SalesReport() {
               <Field label="目標指名本数">
                 <input type="number" value={targetShimei} onChange={(e) => setTargetShimei(e.target.value)} className={inputCls} />
               </Field>
-              <Field label="今月の指名本数">
-                <input type="number" value={shimeiInput} onChange={(e) => setShimeiInput(e.target.value)} className={inputCls} />
+              <Field label="指名本数（手動上書き）">
+                <input type="number" value={shimeiInput} onChange={(e) => setShimeiInput(e.target.value)} className={inputCls} placeholder={`自動:${autoShimei}`} />
               </Field>
             </div>
+            <p className={`text-[11px] ${subTx}`}>
+              ※ 指名は来店登録の「指名」から自動集計されます（今月 {autoShimei}本）。上の欄に入力した場合のみ手動値で上書きします。
+            </p>
             <Field label="今月の目標売上（円・月締めまで）">
               <input type="number" value={targetSales} onChange={(e) => setTargetSales(e.target.value)} className={inputCls} />
             </Field>
@@ -387,12 +403,29 @@ export default function SalesReport() {
                       削除
                     </button>
                   </div>
+                  <Field label="現在値の集計方法">
+                    <select
+                      value={r.source ?? 'manual'}
+                      onChange={(e) => updateRace(r.id, { source: e.target.value as TrialRace['source'] })}
+                      className={inputCls}
+                    >
+                      <option value="manual">手動入力</option>
+                      <option value="sales">今月の売上に自動連動</option>
+                      <option value="shimei">指名本数に自動連動</option>
+                    </select>
+                  </Field>
                   <div className="grid grid-cols-3 gap-2">
                     <Field label="目標">
                       <input type="number" value={r.target || ''} onChange={(e) => updateRace(r.id, { target: Number(e.target.value) })} className={inputCls} />
                     </Field>
                     <Field label="現在">
-                      <input type="number" value={r.current || ''} onChange={(e) => updateRace(r.id, { current: Number(e.target.value) })} className={inputCls} />
+                      <input
+                        type="number"
+                        value={(r.source ?? 'manual') === 'manual' ? r.current || '' : raceCurrent(r)}
+                        disabled={(r.source ?? 'manual') !== 'manual'}
+                        onChange={(e) => updateRace(r.id, { current: Number(e.target.value) })}
+                        className={`${inputCls} disabled:opacity-60`}
+                      />
                     </Field>
                     <Field label="単位">
                       <select value={r.unit || '円'} onChange={(e) => updateRace(r.id, { unit: e.target.value })} className={inputCls}>

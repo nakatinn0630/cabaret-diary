@@ -12,7 +12,6 @@ export interface RiskVisitInput {
   dateMs: number
   amount: number
   payment: PaymentMethod
-  urikakePaid?: boolean
 }
 
 export interface RiskInput {
@@ -83,12 +82,6 @@ export function computeRisk(input: RiskInput, nowMs: number = Date.now()): RiskR
     flags.push('高額現金一括（1回30万円超）')
   }
 
-  // 売掛の未回収がある: +25
-  if (input.visits.some((v) => v.payment === 'urikake' && v.urikakePaid !== true)) {
-    score += 25
-    flags.push('売掛の未回収がある')
-  }
-
   // 本名・連絡先が未登録: +10
   if (!(input.realName ?? '').trim() && !(input.lineName ?? '').trim()) {
     score += 10
@@ -111,7 +104,7 @@ export const SELF_CHECK_ITEMS: string[] = [
   '羽振りの良さ・収入源の説明に一貫性があるか',
   '他のキャストや店に対するトラブル歴がないか',
   '本名・連絡先など身元を明かしているか',
-  '売掛・立替を求められていないか',
+  '立替やお金の相談を求められていないか',
   '短期間で急に距離を詰めてきていないか',
   '個人的な住所・生活圏を知られていないか',
   '「投資」「儲け話」など金銭の勧誘がないか',
