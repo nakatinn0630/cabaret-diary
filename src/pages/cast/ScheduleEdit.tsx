@@ -210,7 +210,7 @@ export default function ScheduleEdit() {
           </button>
         }
       />
-      <Main className="!pb-10">
+      <Main className="!pb-28">
         {/* LINE等からの貼り付け読み込み */}
         {!pasteOpen ? (
           <button

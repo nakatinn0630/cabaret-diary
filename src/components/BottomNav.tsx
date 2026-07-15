@@ -9,14 +9,14 @@ const items = [
   { to: '/menu', label: 'メニュー', icon: '☰', end: false },
 ]
 
-// タブを表示するのはルート画面のみ。詳細・フォーム・黒服相談などの
-// 下層画面では非表示にして、保存バーやチャット入力を覆わないようにする。
-const ROOT_PATHS = new Set(['/', '/customers', '/schedule', '/reply', '/menu'])
+// サブ画面でも常にメニュー導線を出す（どこからでもメニュー等へ戻れるように）。
+// ただし下部にチャット入力がある黒服相談だけは、入力を覆わないよう非表示にする。
+const HIDE_PATHS = new Set(['/consult'])
 
 // クロードデザインの TabBar を移植（下部フローティングのグラスタブ・5導線）
 export function BottomNav() {
   const { pathname } = useLocation()
-  if (!ROOT_PATHS.has(pathname)) return null
+  if (HIDE_PATHS.has(pathname)) return null
   return (
     <nav
       aria-label="メインタブ"

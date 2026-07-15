@@ -152,7 +152,7 @@ export default function CustomerEdit() {
           </button>
         }
       />
-      <Main className="!pb-10">
+      <Main className="!pb-28">
         <div key={shake} className={shake && err ? 'anim-shake' : ''}>
           <Field label="あだ名" required error={err && !form.nickname.trim() ? 'あだ名は必須です' : ''}>
             <input

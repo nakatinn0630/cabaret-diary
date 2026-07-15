@@ -101,7 +101,7 @@ export default function Compatibility() {
 
   return (
     <div className="flex h-full flex-col">
-      <Header title="🔮 占い・相性診断" back onBack={() => navigate(cid ? `/customers/${cid}` : '/customers')} />
+      <Header title="🔮 占い・相性診断" back onBack={() => navigate(-1)} />
 
       <Main>
         {customer && <p className={`text-[13px] ${subTx}`}>お相手: {customer.nickname}</p>}
