@@ -127,8 +127,8 @@ function StoreBroadcasts({ storeId, uid }: { storeId: string; uid?: string }) {
             <Chip className={chipCls(b.type)}>{BTYPE_LABEL[b.type] ?? b.type}</Chip>
             <span className={`text-[11px] ${subTx}`}>{fmtDateTime(b.createdAt)}</span>
           </div>
-          <p className="text-[14px] font-bold">{b.title}</p>
-          {b.body && <p className={`text-[12px] leading-relaxed whitespace-pre-wrap ${subTx}`}>{b.body}</p>}
+          <p className="text-[15px] font-bold">{b.title}</p>
+          {b.body && <p className={`text-[13px] leading-relaxed whitespace-pre-wrap break-words ${subTx}`}>{b.body}</p>}
           {b.quota ? <p className={`text-[12px] font-semibold ${goldTx}`}>目標 {yen(b.quota)}</p> : null}
         </Card>
       ))}

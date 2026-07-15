@@ -13,6 +13,7 @@ import {
 import { ensureCabaageCalendar, upsertEvent } from '../../lib/gcal'
 import { parseScheduleText } from '../../lib/lineParser'
 import { parseScheduleAI } from '../../lib/ai'
+import { downloadIcs } from '../../lib/ics'
 import type { ScheduleType } from '../../types'
 import { Header, Main, Field, Seg, useToast, inputCls, subTx } from '../../components/ui'
 
@@ -142,6 +143,21 @@ export default function ScheduleEdit() {
   }, [editing, existing])
 
   const needsCustomer = type === 'dohan' || type === 'after'
+
+  // iPhone/Mac等のネイティブカレンダーに登録（.ics）。Google連携なしでOK。
+  const addToIphoneCalendar = () => {
+    const startMs = new Date(`${date}T${startTime}`).getTime()
+    let endMs = new Date(`${date}T${endTime}`).getTime()
+    if (Number.isNaN(startMs) || Number.isNaN(endMs)) {
+      setError('日時を正しく入力してください。')
+      return
+    }
+    if (endMs <= startMs) endMs += 24 * 60 * 60 * 1000
+    const customerName = customers.find((c) => c.id === customerId)?.nickname
+    const title = `${SCHEDULE_LABEL[type]}${customerName ? ` · ${customerName}` : ''}`
+    downloadIcs({ title, startMs, endMs, description: memo.trim() || undefined }, 'schedule.ics')
+    toast('カレンダー用ファイルを作成しました。「追加」を選ぶと登録できます📅')
+  }
 
   const submit = async () => {
     setError(null)
@@ -322,9 +338,18 @@ export default function ScheduleEdit() {
           />
         </Field>
 
+        {/* iPhone/端末のカレンダーへ登録（Google連携なしでOK） */}
+        <button
+          type="button"
+          onClick={addToIphoneCalendar}
+          className="w-full min-h-[46px] rounded-xl border border-night/15 dark:border-white/20 font-bold text-[14px] flex items-center justify-center gap-2"
+        >
+          📅 iPhone/端末のカレンダーに追加
+        </button>
+
         {!googleAccessToken && (
           <p className={`text-[11px] ${subTx}`}>
-            ※ Googleカレンダー未連携です。予定一覧の「カレンダー連携」から連携すると自動同期されます。
+            ※ 上のボタンは端末（iPhone等）のカレンダーに登録します。Googleカレンダーへ自動同期したい場合は、予定一覧の「カレンダー連携」から連携してください。
           </p>
         )}
         {error && <p className="text-[13px] font-semibold text-red-500">{error}</p>}
