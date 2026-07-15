@@ -55,7 +55,8 @@ export default function ScheduleEdit() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [syncWarn, setSyncWarn] = useState<string | null>(null)
-  const [pasteOpen, setPasteOpen] = useState(false)
+  // 新規登録時はAI自動入力の貼り付け欄を最初から開いて目立たせる
+  const [pasteOpen, setPasteOpen] = useState(!editing)
   const [pasteText, setPasteText] = useState('')
   const [importing, setImporting] = useState(false)
   const [dirty, setDirty] = useState(false)
@@ -82,6 +83,21 @@ export default function ScheduleEdit() {
     const startTime = ai?.startTime ?? fb.startTime
     const endTime = ai?.endTime ?? fb.endTime
     const got: string[] = []
+    // 種別（要件の分類）: AI優先、無ければ本文のキーワードから推定
+    const kwType: ScheduleType | undefined = /同伴/.test(text)
+      ? 'dohan'
+      : /アフター/.test(text)
+        ? 'after'
+        : /出勤|出勤時間|シフト/.test(text)
+          ? 'shift'
+          : /約束|アポ|待ち合わせ|会う/.test(text)
+            ? 'appointment'
+            : undefined
+    const inferredType = ai?.type ?? kwType
+    if (inferredType) {
+      setType(inferredType)
+      got.push('種別')
+    }
     if (date) {
       setDate(date)
       got.push('日付')
@@ -202,12 +218,12 @@ export default function ScheduleEdit() {
             onClick={() => setPasteOpen(true)}
             className="w-full rounded-xl border border-dashed border-gold/50 bg-gold/5 px-4 py-2.5 text-[13px] font-semibold text-gold"
           >
-            💬 LINEを貼り付けて予定を読み込む
+            ✨ LINEを貼り付けてAIが自動入力
           </button>
         ) : (
           <div className="rounded-xl border border-gold/40 p-3 space-y-2">
             <p className={`text-[12px] font-semibold ${subTx}`}>
-              LINEの本文を貼り付け → AIが日付・時刻・お客様を読み取ります（「明日」「来週火曜」等もOK）
+              LINEの本文を貼り付けて「読み込む」→ AIが種別・日付・時刻・お客様を自動入力します（「明日」「来週火曜」等もOK）。空欄は手入力で調整できます。
             </p>
             <textarea
               value={pasteText}

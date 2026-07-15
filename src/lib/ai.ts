@@ -255,6 +255,7 @@ export interface AiParsedSchedule {
   endTime?: string // HH:MM
   customerName?: string
   title?: string
+  type?: 'shift' | 'dohan' | 'after' | 'appointment' // 種別（要件の分類）
 }
 
 /** LINE等の本文をAIで予定に構造化。今日基準で相対日付も解決。未設定/失敗時は null（呼び出し側で正規表現にフォールバック）。 */
@@ -270,16 +271,18 @@ export async function parseScheduleAI(text: string, knownCustomers: string[] = [
     (knownCustomers.length
       ? `既知の顧客名リスト: ${knownCustomers.join('、')}。本文に該当があれば customerName にこのリストの表記で入れる。`
       : '') +
+    'type は予定の種別。同伴=dohan / アフター=after / 出勤・出勤時間=shift / 客との約束・アポ=appointment。判別できなければ null。' +
     '出力は必ず次のJSONのみ（不明な項目は null）:' +
-    '{"date":"YYYY-MM-DD|null","startTime":"HH:MM|null","endTime":"HH:MM|null","customerName":"名前|null","title":"20字以内の件名"}'
+    '{"date":"YYYY-MM-DD|null","startTime":"HH:MM|null","endTime":"HH:MM|null","customerName":"名前|null","title":"20字以内の件名","type":"dohan|after|shift|appointment|null"}'
   let raw: string
   try {
     raw = await callAI(system, `本文:\n${maskPII(text)}`, { json: true, temperature: 0.1, maxTokens: 200 })
   } catch {
     return null
   }
-  const p = extractJson<{ date?: string; startTime?: string; endTime?: string; customerName?: string; title?: string }>(raw)
+  const p = extractJson<{ date?: string; startTime?: string; endTime?: string; customerName?: string; title?: string; type?: string }>(raw)
   if (!p) return null
+  const okType = ['shift', 'dohan', 'after', 'appointment'].includes(p.type ?? '')
   const okDate = typeof p.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(p.date)
   const timeOk = (t?: string) => typeof t === 'string' && /^\d{1,2}:\d{2}$/.test(t)
   const pad2 = (t: string) => {
@@ -293,6 +296,7 @@ export async function parseScheduleAI(text: string, knownCustomers: string[] = [
     endTime: timeOk(p.endTime) ? pad2(p.endTime!) : undefined,
     customerName: clean(p.customerName),
     title: clean(p.title),
+    type: okType ? (p.type as AiParsedSchedule['type']) : undefined,
   }
 }
 
