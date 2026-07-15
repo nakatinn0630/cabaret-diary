@@ -104,3 +104,18 @@ body {
   outline: 2px solid #c9a24b;
   outline-offset: 2px;
 }
+
+/* iOS Safari の date/time 入力は、値がネイティブの「箱」で描画され、
+   独自スタイルの入力欄と二重（被り）に見える。ネイティブ装飾を外し、
+   値を左寄せにしてすっきり表示する（重なり解消）。 */
+input[type='date'],
+input[type='time'],
+input[type='datetime-local'] {
+  -webkit-appearance: none;
+  appearance: none;
+}
+input[type='date']::-webkit-date-and-time-value,
+input[type='time']::-webkit-date-and-time-value,
+input[type='datetime-local']::-webkit-date-and-time-value {
+  text-align: left;
+}
