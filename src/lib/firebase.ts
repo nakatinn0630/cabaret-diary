@@ -1,12 +1,6 @@
 import { initializeApp } from 'firebase/app'
 import { getAuth, GoogleAuthProvider, type Auth } from 'firebase/auth'
-import {
-  getFirestore,
-  initializeFirestore,
-  persistentLocalCache,
-  persistentMultipleTabManager,
-  type Firestore,
-} from 'firebase/firestore'
+import { getFirestore, type Firestore } from 'firebase/firestore'
 
 // Firebase設定は環境変数から注入する（.env参照。値はコミットしない）。
 // Firebaseプロジェクト: points-optimizer-app / asia-northeast1
@@ -25,24 +19,16 @@ export const isFirebaseConfigured = Boolean(firebaseConfig.apiKey && firebaseCon
 const app = isFirebaseConfigured ? initializeApp(firebaseConfig) : undefined
 export const auth: Auth = app ? getAuth(app) : (null as unknown as Auth)
 
-// オフライン対応: IndexedDBの永続キャッシュを有効化。電波が悪くても読み書きが
-// ローカルにキューされ、再接続時に自動同期される（P1: オフライン書き込み失敗の解消）。
-function makeDb(a: NonNullable<typeof app>): Firestore {
-  try {
-    return initializeFirestore(a, {
-      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
-    })
-  } catch {
-    // 一部ブラウザ（プライベートモード等）でIndexedDB不可の場合は通常初期化にフォールバック
-    return getFirestore(a)
-  }
-}
-export const db: Firestore = app ? makeDb(app) : (null as unknown as Firestore)
+// 既定(メモリ)キャッシュを使う。永続キャッシュ(IndexedDB)は、collectionGroup 集計が
+// アカウント切替時に別アカウントのキャッシュ結果を返し得る（データ分離の懸念）ため使わない。
+export const db: Firestore = app ? getFirestore(app) : (null as unknown as Firestore)
 
 // SEC-01: 認証はGoogle OAuthを標準とする。
 // 初回ログインは標準スコープ(email/profile)のみ＝センシティブ権限を含まないため、
 // 「未確認アプリ」警告が出ずクリーンなGoogleログインになる。
+// prompt:'select_account' で常にアカウント選択画面を出す（別アカウントに切替できるように）。
 export const googleProvider = new GoogleAuthProvider()
+googleProvider.setCustomParameters({ prompt: 'select_account' })
 // F-04: Googleカレンダー連携用スコープ（専用カレンダー作成＋イベント読み書き）。
 // センシティブ権限のため初回ログインでは要求せず、連携ボタン押下時のみ追加要求する。
 export const GOOGLE_CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar'

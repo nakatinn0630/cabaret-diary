@@ -60,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (withCalendar) {
       provider = new GoogleAuthProvider()
       provider.addScope(GOOGLE_CALENDAR_SCOPE)
+      provider.setCustomParameters({ prompt: 'select_account' })
     }
     const result = await signInWithPopup(auth, provider)
     const cred = GoogleAuthProvider.credentialFromResult(result)
