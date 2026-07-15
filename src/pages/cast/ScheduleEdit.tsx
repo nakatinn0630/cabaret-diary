@@ -14,7 +14,7 @@ import { ensureCabaageCalendar, upsertEvent } from '../../lib/gcal'
 import { parseScheduleText } from '../../lib/lineParser'
 import { parseScheduleAI } from '../../lib/ai'
 import type { ScheduleType } from '../../types'
-import { Header, Main, Field, Seg, DateSelect, useToast, inputCls, subTx } from '../../components/ui'
+import { Header, Main, Field, Seg, useToast, inputCls, subTx } from '../../components/ui'
 
 const SCHED_ICON: Record<ScheduleType, string> = {
   shift: '🕘',
@@ -292,8 +292,16 @@ export default function ScheduleEdit() {
           </Field>
         )}
 
+        {/* ネイティブの date/time でタップ1回。重なりなし・Webで入力しやすい */}
         <Field label="日付">
-          <DateSelect value={date} onChange={(v) => { setDirty(true); setDate(v) }} fromYear={nowYear - 1} toYear={nowYear + 2} />
+          <input
+            type="date"
+            value={date}
+            min={`${nowYear - 1}-01-01`}
+            max={`${nowYear + 2}-12-31`}
+            onChange={(e) => { setDirty(true); setDate(e.target.value) }}
+            className={inputCls}
+          />
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="開始">
@@ -308,7 +316,7 @@ export default function ScheduleEdit() {
           <textarea
             value={memo}
             onChange={(e) => { setDirty(true); setMemo(e.target.value) }}
-            rows={5}
+            rows={3}
             className={`${inputCls} leading-relaxed`}
             placeholder="場所・約束ごと など"
           />
