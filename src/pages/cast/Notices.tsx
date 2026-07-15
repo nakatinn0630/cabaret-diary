@@ -67,7 +67,7 @@ export default function Notices() {
     <div className="flex h-full flex-col">
       <Header title="🔔 お知らせ" back onBack={() => navigate('/')} />
 
-      <Main>
+      <Main className="!px-3">
         {loading ? (
           <Empty>読み込み中…</Empty>
         ) : memberships.length === 0 ? (
@@ -122,7 +122,7 @@ function StoreBroadcasts({ storeId, uid }: { storeId: string; uid?: string }) {
     <section className="space-y-2.5">
       <SectionTitle>{store?.name ?? '店舗'}</SectionTitle>
       {broadcasts.map((b) => (
-        <Card key={b.id} className="p-4 space-y-1.5">
+        <Card key={b.id} className="px-3.5 py-3.5 space-y-1.5">
           <div className="flex items-center gap-2">
             <Chip className={chipCls(b.type)}>{BTYPE_LABEL[b.type] ?? b.type}</Chip>
             <span className={`text-[11px] ${subTx}`}>{fmtDateTime(b.createdAt)}</span>

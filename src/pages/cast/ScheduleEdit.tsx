@@ -316,7 +316,7 @@ export default function ScheduleEdit() {
             min={`${nowYear - 1}-01-01`}
             max={`${nowYear + 2}-12-31`}
             onChange={(e) => { setDirty(true); setDate(e.target.value) }}
-            className={inputCls}
+            className={`${inputCls} !w-auto !max-w-[210px] !px-3 !py-2`}
           />
         </Field>
         <div className="grid grid-cols-2 gap-3">
