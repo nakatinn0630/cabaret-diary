@@ -14,8 +14,11 @@ import { ensureCabaageCalendar, upsertEvent } from '../../lib/gcal'
 import { parseScheduleText } from '../../lib/lineParser'
 import { parseScheduleAI } from '../../lib/ai'
 import { downloadIcs } from '../../lib/ics'
+import { useProfileSettings, saveProfileSettings } from '../../lib/sales'
 import type { ScheduleType } from '../../types'
 import { Header, Main, Field, Seg, useToast, inputCls, subTx } from '../../components/ui'
+
+type CalTarget = 'google' | 'device'
 
 const SCHED_ICON: Record<ScheduleType, string> = {
   shift: '🕘',
@@ -40,10 +43,21 @@ export default function ScheduleEdit() {
   const editing = Boolean(sid)
   const navigate = useNavigate()
   const toast = useToast()
-  const { googleAccessToken } = useAuth()
+  const { googleAccessToken, calendarLinked } = useAuth()
   const { customers } = useCustomers()
   const { schedules } = useSchedules()
+  const { settings } = useProfileSettings()
   const existing = useMemo(() => schedules.find((s) => s.id === sid), [schedules, sid])
+
+  // 登録先カレンダーのスイッチ（設定として保存）。既定は連携済みなら Google、未連携なら端末。
+  const [calTarget, setCalTarget] = useState<CalTarget>('device')
+  useEffect(() => {
+    setCalTarget(settings.calendarTarget ?? (calendarLinked ? 'google' : 'device'))
+  }, [settings.calendarTarget, calendarLinked])
+  const changeTarget = (t: CalTarget) => {
+    setCalTarget(t)
+    void saveProfileSettings({ calendarTarget: t })
+  }
 
   const now = new Date()
   const nowYear = now.getFullYear()
@@ -144,21 +158,6 @@ export default function ScheduleEdit() {
 
   const needsCustomer = type === 'dohan' || type === 'after'
 
-  // iPhone/Mac等のネイティブカレンダーに登録（.ics）。Google連携なしでOK。
-  const addToIphoneCalendar = () => {
-    const startMs = new Date(`${date}T${startTime}`).getTime()
-    let endMs = new Date(`${date}T${endTime}`).getTime()
-    if (Number.isNaN(startMs) || Number.isNaN(endMs)) {
-      setError('日時を正しく入力してください。')
-      return
-    }
-    if (endMs <= startMs) endMs += 24 * 60 * 60 * 1000
-    const customerName = customers.find((c) => c.id === customerId)?.nickname
-    const title = `${SCHEDULE_LABEL[type]}${customerName ? ` · ${customerName}` : ''}`
-    downloadIcs({ title, startMs, endMs, description: memo.trim() || undefined }, 'schedule.ics')
-    toast('カレンダー用ファイルを作成しました。「追加」を選ぶと登録できます📅')
-  }
-
   const submit = async () => {
     setError(null)
     setSyncWarn(null)
@@ -178,14 +177,25 @@ export default function ScheduleEdit() {
       memo: memo.trim() || undefined,
     }
 
+    const customerName = customers.find((c) => c.id === customerId)?.nickname
+    const eventTitle = `${SCHEDULE_LABEL[type]}${customerName ? ` · ${customerName}` : ''}`
+
     setSaving(true)
     try {
       const id = editing && sid ? (await updateSchedule(sid, input), sid) : await createSchedule(input)
 
-      // F-04 Googleカレンダー同期（best-effort）
+      // スイッチに連動：端末カレンダー(.ics) か Googleカレンダー のどちらかへ登録
+      if (calTarget === 'device') {
+        // iPhone等の端末カレンダーへ（.ics）。少し待ってから一覧へ戻す。
+        downloadIcs({ title: eventTitle, startMs, endMs, description: input.memo }, 'schedule.ics')
+        toast('保存し、端末カレンダーに追加します 📅')
+        setTimeout(() => navigate('/schedule'), 500)
+        return
+      }
+
+      // calTarget === 'google'
       if (googleAccessToken) {
         try {
-          const customerName = customers.find((c) => c.id === customerId)?.nickname
           const calId = await ensureCabaageCalendar(googleAccessToken)
           const eventId = await upsertEvent(
             googleAccessToken,
@@ -194,15 +204,17 @@ export default function ScheduleEdit() {
             existing?.googleEventId ?? undefined,
           )
           await setGoogleEventId(id, eventId)
+          toast('Googleカレンダーに同期しました ✓')
+          navigate('/schedule')
         } catch {
           setSyncWarn('保存はできましたが、Googleカレンダー同期に失敗しました（予定一覧から再連携できます）。')
+          setSaving(false)
         }
+      } else {
+        // Google選択だが未連携：保存はして、連携を促す
+        setSyncWarn('保存しました。Googleカレンダーに同期するには、予定一覧の「Googleカレンダーと連携」を実行してください。')
+        setSaving(false)
       }
-
-      if (!syncWarn) {
-        toast(googleAccessToken ? 'Googleカレンダーに同期しました ✓' : '保存しました ✓')
-        navigate('/schedule')
-      } else setSaving(false)
     } catch (e) {
       setError(e instanceof Error ? e.message : '保存に失敗しました。')
       setSaving(false)
@@ -338,20 +350,25 @@ export default function ScheduleEdit() {
           />
         </Field>
 
-        {/* iPhone/端末のカレンダーへ登録（Google連携なしでOK） */}
-        <button
-          type="button"
-          onClick={addToIphoneCalendar}
-          className="w-full min-h-[46px] rounded-xl border border-night/15 dark:border-white/20 font-bold text-[14px] flex items-center justify-center gap-2"
-        >
-          📅 iPhone/端末のカレンダーに追加
-        </button>
+        {/* 登録先スイッチ（設定として保存）。「追加/更新」で選んだカレンダーに登録される。 */}
+        <Field label="登録先カレンダー（設定）">
+          <Seg<CalTarget>
+            options={[
+              { v: 'device', label: '📱 iPhone/端末' },
+              { v: 'google', label: '📅 Googleカレンダー' },
+            ]}
+            value={calTarget}
+            onChange={changeTarget}
+          />
+        </Field>
+        <p className={`text-[11px] ${subTx}`}>
+          {calTarget === 'device'
+            ? '「追加/更新」で保存し、続けて端末（iPhone等）のカレンダー追加画面が開きます。'
+            : googleAccessToken
+              ? '「追加/更新」で保存し、Googleカレンダーに自動同期します。'
+              : 'Googleカレンダー未連携です。予定一覧の「Googleカレンダーと連携」を実行すると自動同期されます。'}
+        </p>
 
-        {!googleAccessToken && (
-          <p className={`text-[11px] ${subTx}`}>
-            ※ 上のボタンは端末（iPhone等）のカレンダーに登録します。Googleカレンダーへ自動同期したい場合は、予定一覧の「カレンダー連携」から連携してください。
-          </p>
-        )}
         {error && <p className="text-[13px] font-semibold text-red-500">{error}</p>}
         {syncWarn && <p className="text-[13px] font-semibold text-amber-600 dark:text-amber-400">{syncWarn}</p>}
       </Main>

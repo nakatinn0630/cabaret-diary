@@ -41,6 +41,8 @@ export interface ProfileSettings {
   trialEndDate?: Timestamp
   /** 試用期間の自由レース一覧 */
   trialRaces?: TrialRace[]
+  /** 予定の登録先カレンダー。'google'=Googleカレンダー / 'device'=iPhone等の端末カレンダー(.ics) */
+  calendarTarget?: 'google' | 'device'
 }
 
 export interface MonthlyStats {
