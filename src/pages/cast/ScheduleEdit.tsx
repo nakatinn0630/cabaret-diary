@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Timestamp } from 'firebase/firestore'
 import { useAuth } from '../../contexts/AuthContext'
@@ -29,6 +29,36 @@ const SCHED_ICON: Record<ScheduleType, string> = {
 
 const TYPES: ScheduleType[] = ['shift', 'dohan', 'after', 'appointment']
 
+const CAL_TARGET_KEY = 'kyabacho_cal_target'
+
+// ネイティブの date/time はブラウザ/端末のロケールで表示形式が変わる（例: 07/21/2026・08:00 PM）。
+// ピッカーの使いやすさは活かしつつ、表示だけを YYYY/MM/DD・24時間HH:MM に固定するため、
+// 値の文字色を透過にして、独自の整形テキストを重ねて表示する。
+function DTField({
+  type,
+  value,
+  onChange,
+  display,
+  placeholder,
+  inputClassName,
+}: {
+  type: 'date' | 'time'
+  value: string
+  onChange: (e: ChangeEvent<HTMLInputElement>) => void
+  display: string
+  placeholder: string
+  inputClassName: string
+}) {
+  return (
+    <div className="relative">
+      <input type={type} value={value} onChange={onChange} className={inputClassName} style={{ WebkitTextFillColor: 'transparent' }} />
+      <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-[16px] whitespace-nowrap">
+        {value ? display : <span className="text-night/30 dark:text-white/30">{placeholder}</span>}
+      </span>
+    </div>
+  )
+}
+
 function toDateInput(t: Timestamp): string {
   const d = t.toDate()
   return d.toISOString().slice(0, 10)
@@ -49,18 +79,22 @@ export default function ScheduleEdit() {
   const { settings } = useProfileSettings()
   const existing = useMemo(() => schedules.find((s) => s.id === sid), [schedules, sid])
 
-  // 登録先カレンダーのスイッチ（設定として保存）。既定は連携済みなら Google、未連携なら端末。
-  const [calTarget, setCalTarget] = useState<CalTarget>('device')
+  // 登録先カレンダーのスイッチ。一度選んだら初期値として記憶（端末localStorage＋プロフィールDB）。
+  const [calTarget, setCalTarget] = useState<CalTarget>(() => {
+    const v = typeof localStorage !== 'undefined' ? localStorage.getItem(CAL_TARGET_KEY) : null
+    return v === 'google' || v === 'device' ? v : calendarLinked ? 'google' : 'device'
+  })
+  // 別端末で変更した場合はプロフィール設定を優先して反映
   useEffect(() => {
-    setCalTarget(settings.calendarTarget ?? (calendarLinked ? 'google' : 'device'))
-  }, [settings.calendarTarget, calendarLinked])
+    if (settings.calendarTarget) setCalTarget(settings.calendarTarget)
+  }, [settings.calendarTarget])
   const changeTarget = (t: CalTarget) => {
     setCalTarget(t)
+    if (typeof localStorage !== 'undefined') localStorage.setItem(CAL_TARGET_KEY, t)
     void saveProfileSettings({ calendarTarget: t })
   }
 
   const now = new Date()
-  const nowYear = now.getFullYear()
   const [type, setType] = useState<ScheduleType>('shift')
   const [customerId, setCustomerId] = useState('')
   const [date, setDate] = useState(now.toISOString().slice(0, 10))
@@ -320,23 +354,39 @@ export default function ScheduleEdit() {
           </Field>
         )}
 
-        {/* ネイティブの date/time でタップ1回。重なりなし・Webで入力しやすい */}
+        {/* 表示は YYYY/MM/DD・24時間HH:MM に固定（ネイティブのピッカーはそのまま使える） */}
         <Field label="日付">
-          <input
-            type="date"
-            value={date}
-            min={`${nowYear - 1}-01-01`}
-            max={`${nowYear + 2}-12-31`}
-            onChange={(e) => { setDirty(true); setDate(e.target.value) }}
-            className={`${inputCls} !w-auto !max-w-[210px] !px-3 !py-2`}
-          />
+          <div className="max-w-[210px]">
+            <DTField
+              type="date"
+              value={date}
+              onChange={(e) => { setDirty(true); setDate(e.target.value) }}
+              display={date.replace(/-/g, '/')}
+              placeholder="YYYY/MM/DD"
+              inputClassName={`${inputCls} !py-2`}
+            />
+          </div>
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="開始">
-            <input type="time" value={startTime} onChange={(e) => { setDirty(true); setStartTime(e.target.value) }} className={inputCls} />
+            <DTField
+              type="time"
+              value={startTime}
+              onChange={(e) => { setDirty(true); setStartTime(e.target.value) }}
+              display={startTime}
+              placeholder="--:--"
+              inputClassName={inputCls}
+            />
           </Field>
           <Field label="終了">
-            <input type="time" value={endTime} onChange={(e) => { setDirty(true); setEndTime(e.target.value) }} className={inputCls} />
+            <DTField
+              type="time"
+              value={endTime}
+              onChange={(e) => { setDirty(true); setEndTime(e.target.value) }}
+              display={endTime}
+              placeholder="--:--"
+              inputClassName={inputCls}
+            />
           </Field>
         </div>
 
