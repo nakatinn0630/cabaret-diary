@@ -1,7 +1,7 @@
 # Cabaret Diary（キャバ帳）新プロジェクト＋キャスト/店舗 完全分離 デプロイ手順
 
 旧名 `points-optimizer` を廃し、ブランドを **Cabaret Diary（和名：キャバ帳）** に統一する。
-Firebase プロジェクトidは不変のため、現行 `points-optimizer-app` の URL は改名できない。
+Firebase プロジェクトidは不変のため、現行 `cabaret-diary` の URL は改名できない。
 そこで **新プロジェクト `cabaret-diary` を作成**し、**キャスト用URL・店舗用URLを別サイトとして分離**して配信する。
 
 > コード側の分離は実装済み（`src/lib/surface.ts` / `VITE_SURFACE`）。以下はインフラ（あなたのFirebase Console操作）と最終デプロイの手順。
@@ -83,6 +83,6 @@ Authentication → Settings → 承認済みドメインに
 
 ## 補足
 
-- **現行 `points-optimizer-app.web.app` はそのまま残せます**（単一URL・両サーフェス表示のまま）。新URLへ移行後に停止・非公開化するか、案内リンクを置くかは任意。
+- **現行 `cabaret-diary.web.app` はそのまま残せます**（単一URL・両サーフェス表示のまま）。新URLへ移行後に停止・非公開化するか、案内リンクを置くかは任意。
 - **より短いURL**（例 `cabaret-diary.web.app` を1つだけ）にしたい場合は、分離せず単一サイト（`VITE_SURFACE` 未指定＝both）で配信する構成にも即切替できます。
 - 独自ドメイン（例 `cast.example.com` / `store.example.com`）が欲しい場合は、各Hostingサイトにカスタムドメインを追加してください。

@@ -3,7 +3,7 @@ import { getAuth, GoogleAuthProvider, type Auth } from 'firebase/auth'
 import { getFirestore, type Firestore } from 'firebase/firestore'
 
 // Firebase設定は環境変数から注入する（.env参照。値はコミットしない）。
-// Firebaseプロジェクト: points-optimizer-app / asia-northeast1
+// Firebaseプロジェクト: cabaret-diary / asia-northeast1
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,

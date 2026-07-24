@@ -28,7 +28,7 @@ firebase deploy --only functions
 
 デプロイ後、`aiProxy` のURLを取得し、フロントの `.env` に設定:
 ```
-VITE_AI_PROXY_URL=https://asia-northeast1-points-optimizer-app.cloudfunctions.net/aiProxy
+VITE_AI_PROXY_URL=https://asia-northeast1-cabaret-diary.cloudfunctions.net/aiProxy
 ```
 これでクライアントのAI機能がローカル簡易生成 → Claude生成へ切り替わる。
 

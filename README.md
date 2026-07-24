@@ -1,6 +1,6 @@
-# キャバ帳 / Cabaret Diary（cabaret-diary-app）
+# キャバ帳 / Cabaret Diary
 
-> 和名「キャバ帳」＝英名「Cabaret Diary」。`points-optimizer` は旧リポジトリ名の名残であり、プロダクト名としては使用しない（Firebaseプロジェクトidはインフラの都合で現状維持）。
+> 和名「キャバ帳」＝英名「Cabaret Diary」。本プロジェクトはキャバ帳専用。公開URL: https://cabaret-diary.web.app
 
 キャバクラで働くキャスト向けの、顧客管理・スケジュール・LINE営業・メンタルケア・売上管理を1つで完結するパーソナルアプリ。加えて、店舗（担当黒服・店長）向けの店舗コンソールを備える。
 
@@ -12,7 +12,7 @@
 - フロント: **React 18 + Vite + PWA**（Tailwind CSS）
 - バックエンド: Firebase（Auth / Firestore / 将来 Cloud Functions）
 - 認証: Firebase Authentication（Google OAuth / SEC-01）
-- Firebaseプロジェクト: `points-optimizer-app`（asia-northeast1）
+- Firebaseプロジェクト: `cabaret-diary`（公開URL: `cabaret-diary.web.app`）
 
 ## サーフェス構成（D-1）
 

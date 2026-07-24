@@ -24,7 +24,7 @@
 | セッション/認証情報 | Firebase Authentication | ― | SEC-01 |
 
 - **リージョン**：`asia-northeast1`（東京）。Firestore・Storage・Functionsを同一リージョンに寄せる。
-- **プロジェクト**：`points-optimizer-app`。
+- **プロジェクト**：`cabaret-diary`。
 
 ---
 
