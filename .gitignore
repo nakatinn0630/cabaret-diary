@@ -1,0 +1,20 @@
+node_modules
+dist
+dist-ssr
+*.local
+*.tsbuildinfo
+
+# env / secrets — 実値はコミットしない
+.env
+.env.*
+!.env.example
+
+# editor / os
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+*.log
+
+# Firebase CLI のデプロイキャッシュ
+.firebase/
+firebase-debug.log

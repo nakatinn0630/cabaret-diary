@@ -1,9 +1,81 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // テストモード - 全てのアクセスを許可
-    match /{document=**} {
-      allow read, write: if true;
+
+    // SEC-02: 認証必須。キャストの個人領域は本人(uid)以外アクセス不可。
+    // キャスト個人領域: users/{uid} 配下すべて（顧客・来店・占い・相談・売上など）
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // 店舗連携（F-15〜F-18）。店舗コンソールからキャスト個人領域(users/**)へは到達できない。
+    match /stores/{storeId} {
+      function signedIn() { return request.auth != null; }
+      function memberPath(uid) {
+        return /databases/$(database)/documents/stores/$(storeId)/memberships/$(uid);
+      }
+      function isMember() { return signedIn() && exists(memberPath(request.auth.uid)); }
+      function myRole() { return get(memberPath(request.auth.uid)).data.role; }
+      function isManager() { return isMember() && myRole() == 'manager'; }
+      function isStaff() { return isMember() && (myRole() == 'manager' || myRole() == 'kurofuku'); }
+
+      // 店舗ドキュメント: 作成者=本人、更新は店長、閲覧はメンバー
+      allow read: if isMember();
+      allow create: if signedIn() && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if isManager();
+
+      // メンバーシップ: 閲覧はメンバー。自分の分は本人が作成/更新（招待コードで参加）。他人の変更は店長。
+      match /memberships/{memberUid} {
+        allow read: if isMember();
+        allow create, update: if request.auth.uid == memberUid || isManager();
+        allow delete: if isManager();
+      }
+
+      // 招待コード: 発行は店長、参加検証のため署名済みユーザーは読取可
+      match /invites/{code} {
+        allow read: if signedIn();
+        allow write: if isManager();
+      }
+
+      // 発信: 閲覧はメンバー、投稿は店長/黒服
+      match /broadcasts/{bid} {
+        allow read: if isMember();
+        allow create, update, delete: if isStaff();
+
+        // 既読: 本人が自分の既読を書き込み
+        match /reads/{uid} {
+          allow read: if isMember();
+          allow write: if request.auth.uid == uid;
+        }
+      }
+
+      // 売上: 店長が確定。キャストは自分の自己申告のみ書込可。閲覧はメンバー。
+      match /sales/{month}/casts/{castUid} {
+        allow read: if isMember();
+        allow write: if isManager() || request.auth.uid == castUid;
+      }
+
+      // ランキング: 閲覧はメンバー、公開/更新は店長
+      match /rankings/{rankId} {
+        allow read: if isMember();
+        allow write: if isManager();
+      }
+
+      // 罰金（F-21）: 本人＝自分の分のみ閲覧、店スタッフ（店長/黒服）が発行・更新・削除。
+      match /penalties/{pid} {
+        allow read: if isStaff() || (signedIn() && resource.data.castUid == request.auth.uid);
+        allow create, update, delete: if isStaff();
+      }
+
+      // 店舗⇄キャスト連絡（F-20）: 本人と店のみ可視。
+      // 閲覧: スタッフ、または自分宛スレッド（castUid==自分）。
+      // 投稿: スタッフ（誰宛でも）、またはキャスト本人（自分のスレッドかつ差出人=自分）。
+      match /messages/{mid} {
+        allow read: if isStaff() || (signedIn() && resource.data.castUid == request.auth.uid);
+        allow create: if isStaff()
+          || (isMember() && request.resource.data.castUid == request.auth.uid
+              && request.resource.data.fromUid == request.auth.uid);
+      }
     }
   }
 }

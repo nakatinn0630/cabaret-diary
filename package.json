@@ -1,0 +1,36 @@
+{
+  "name": "cabaret-diary-app",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "キャバ帳 / Cabaret Diary - キャスト向け顧客・スケジュール管理 PWA + 店舗コンソール",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "build:cast": "tsc -b && VITE_SURFACE=cast vite build --outDir dist-cast",
+    "build:store": "tsc -b && VITE_SURFACE=store vite build --outDir dist-store",
+    "preview": "vite preview",
+    "lint": "eslint .",
+    "typecheck": "tsc -b --noEmit"
+  },
+  "dependencies": {
+    "firebase": "^11.10.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^9.17.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.65.0",
+    "vite": "^6.0.5",
+    "vite-plugin-pwa": "^0.21.1"
+  }
+}

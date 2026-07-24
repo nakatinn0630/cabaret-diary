@@ -1,0 +1,121 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: 'Noto Sans JP', system-ui, -apple-system, 'Hiragino Sans', sans-serif;
+  /* 夜×高級感の下地グラデーション（ライト/ダークで切替） */
+  background: linear-gradient(175deg, #f7f3ec, #f2ecf4 55%, #efe9e2);
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background: linear-gradient(175deg, #17103a, #1f1147 60%, #241242);
+  }
+}
+
+/* セーフエリア対応：ノッチ・カメラ・ステータスバーに被らないよう余白を確保
+   （index.html の viewport-fit=cover と対で機能する） */
+.safe-top {
+  padding-top: max(env(safe-area-inset-top), 0.75rem);
+}
+.safe-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom), 0px);
+}
+.safe-x {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* iOS風の画面遷移・モーダル・フォームフィードバック（クロードデザイン由来） */
+@keyframes kslide {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+.anim-push {
+  animation: kslide 0.28s cubic-bezier(0.32, 0.72, 0.3, 1);
+}
+@keyframes ksheet {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+.anim-sheet {
+  animation: ksheet 0.3s cubic-bezier(0.32, 0.72, 0.3, 1);
+}
+@keyframes kshake {
+  0%,
+  100% {
+    transform: none;
+  }
+  20%,
+  60% {
+    transform: translateX(-7px);
+  }
+  40%,
+  80% {
+    transform: translateX(7px);
+  }
+}
+.anim-shake {
+  animation: kshake 0.4s ease;
+}
+@keyframes ktoast {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 10px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+.anim-toast {
+  animation: ktoast 0.25s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .anim-push,
+  .anim-sheet,
+  .anim-shake,
+  .anim-toast {
+    animation: none;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid #c9a24b;
+  outline-offset: 2px;
+}
+
+/* iOS Safari の date/time 入力は、値がネイティブの「箱」で描画され、
+   独自スタイルの入力欄と二重（被り）に見える。ネイティブ装飾を外し、
+   値を左寄せにしてすっきり表示する（重なり解消）。 */
+input[type='date'],
+input[type='time'],
+input[type='datetime-local'] {
+  -webkit-appearance: none;
+  appearance: none;
+}
+input[type='date']::-webkit-date-and-time-value,
+input[type='time']::-webkit-date-and-time-value,
+input[type='datetime-local']::-webkit-date-and-time-value {
+  text-align: left;
+}
