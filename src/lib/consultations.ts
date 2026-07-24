@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useSyncExternalStore } from 'react'
 import { Timestamp } from 'firebase/firestore'
-import { auth } from './firebase'
-import { demoActive, demoConsultations, DEMO_UID } from './demo'
+import { demoActive, demoConsultations } from './demo'
+import { currentUid } from './uid'
 import type { Consultation, ConsultationMessage, ConsultationCategory, EscalationTarget } from '../types'
 
 // AI黒服「クロ」の相談は、プライバシー最優先で **DB(Firestore)に保存せず、自端末のローカル(localStorage)にのみ保存**する。
@@ -18,11 +18,8 @@ type StoredConsult = {
 }
 
 const storeKey = (): string | null => {
-  const u = auth.currentUser
-  if (u) return `kyabacho_consults_${u.uid}`
-  // デモは firebase の currentUser が無い（AuthContext 側の擬似ユーザーのみ）ため DEMO_UID を使う。
-  if (demoActive()) return `kyabacho_consults_${DEMO_UID}`
-  return null
+  const uid = currentUid()
+  return uid ? `kyabacho_consults_${uid}` : null
 }
 
 const listeners = new Set<() => void>()

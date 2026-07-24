@@ -41,14 +41,30 @@ export default function LoginPage() {
         </p>
       </div>
 
-      <button
-        type="button"
-        onClick={() => void onSignIn()}
-        disabled={busy}
-        className="w-full max-w-[280px] min-h-[52px] rounded-2xl bg-gold text-night font-bold text-[16px] shadow-xl shadow-gold/30 transition active:scale-[0.98] disabled:opacity-60"
-      >
-        {busy ? 'ログイン中…' : 'Googleでログイン'}
-      </button>
+      <ul className={`flex flex-wrap justify-center gap-1.5 max-w-[320px] text-[11px] font-semibold ${subTx}`}>
+        {['顧客管理', '売上目標', 'スケジュール', '占い・相性', 'AI黒服相談'].map((f) => (
+          <li key={f} className="rounded-full border border-gold/40 px-2.5 py-1">
+            {f}
+          </li>
+        ))}
+      </ul>
+
+      <div className="w-full max-w-[280px] space-y-3">
+        <button
+          type="button"
+          onClick={() => void onSignIn()}
+          disabled={busy}
+          className="w-full min-h-[52px] rounded-2xl bg-gold text-night font-bold text-[16px] shadow-xl shadow-gold/30 transition active:scale-[0.98] disabled:opacity-60"
+        >
+          {busy ? 'ログイン中…' : 'Googleでログイン'}
+        </button>
+        <a
+          href="/demo"
+          className="block w-full min-h-[48px] leading-[48px] rounded-2xl border border-gold/50 text-gold font-bold text-[15px] transition active:scale-[0.98]"
+        >
+          ログインせずデモを見る
+        </a>
+      </div>
 
       {error && <p className="max-w-xs text-[12px] text-rose">{error}</p>}
       <p className={`max-w-xs text-[11px] leading-relaxed ${subTx}`}>

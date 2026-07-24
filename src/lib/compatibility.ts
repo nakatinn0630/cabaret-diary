@@ -1,18 +1,13 @@
 import { doc, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { auth, db } from './firebase'
-import { demoActive, DEMO_UID } from './demo'
+import { demoActive } from './demo'
+import { currentUid, requireUid } from './uid'
 import type { CompatibilityRank, RelationshipType } from '../types'
 
 // 保存先の切り分け（ユーザー要件）：
 //  ・占い/相性診断の「診断結果・履歴」→ 端末ローカル（localStorage）。DBには保存しない。
 //  ・診断から「ピン留めした注意点(pinnedCautions)」→ これは“顧客情報”として接客前表示や
 //    顧客編集に使うため、顧客ドキュメント(DB)に保存する。
-function requireUid(): string {
-  const u = auth.currentUser
-  if (u) return u.uid
-  if (demoActive()) return DEMO_UID
-  throw new Error('ログインが必要です')
-}
 
 export interface DiagnosisToSave {
   relationshipTypes: RelationshipType[]
@@ -48,8 +43,7 @@ export async function saveDiagnosis(cid: string, d: DiagnosisToSave): Promise<st
 
 /** ある顧客の過去診断（端末ローカル）を新しい順に取得。 */
 export function getDiagnoses(cid: string): StoredDiagnosis[] {
-  const u = auth.currentUser
-  const uid = u ? u.uid : demoActive() ? DEMO_UID : null
+  const uid = currentUid()
   if (!uid) return []
   return readDiag(uid).filter((x) => x.cid === cid)
 }

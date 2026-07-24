@@ -1,4 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#1f1147"/>
-  <text x="32" y="42" font-family="sans-serif" font-size="30" font-weight="bold" fill="#c9a24b" text-anchor="middle">帳</text>
+  <defs>
+    <radialGradient id="bg" cx="30%" cy="20%" r="100%">
+      <stop offset="0%" stop-color="#3b2478"/>
+      <stop offset="55%" stop-color="#1f1147"/>
+      <stop offset="100%" stop-color="#150b33"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0%" stop-color="#f2d99a"/>
+      <stop offset="55%" stop-color="#c9a24b"/>
+      <stop offset="100%" stop-color="#a87f2e"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
+  <circle cx="50" cy="14" r="7" fill="#e8c97e" opacity="0.28"/>
+  <text x="32" y="43" font-family="serif" font-size="32" font-weight="bold" fill="url(#gold)" text-anchor="middle">帳</text>
+  <rect x="20" y="50" width="24" height="1.6" rx="0.8" fill="#c9a24b" opacity="0.85"/>
 </svg>

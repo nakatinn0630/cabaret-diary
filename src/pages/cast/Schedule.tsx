@@ -6,6 +6,7 @@ import { deleteSchedule, useSchedules, SCHEDULE_LABEL } from '../../lib/schedule
 import { ensureCabaageCalendar, deleteEvent } from '../../lib/gcal'
 import type { Schedule as ScheduleT, ScheduleType, Timestamp } from '../../types'
 import { Header, Main, Card, SectionTitle, Chip, Empty, subTx } from '../../components/ui'
+import { fmtHM, localDateKey } from '../../lib/datetime'
 
 const SCHED_ICON: Record<ScheduleType, string> = {
   shift: '🕘',
@@ -14,13 +15,9 @@ const SCHED_ICON: Record<ScheduleType, string> = {
   appointment: '📌',
 }
 
-function hhmm(t: Timestamp): string {
-  const d = t.toDate()
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-}
-function dayKey(t: Timestamp): string {
-  return t.toDate().toISOString().slice(0, 10)
-}
+const hhmm = (t: Timestamp): string => fmtHM(t.toDate())
+// ローカル日付でグルーピング（UTC日付だとJST深夜の予定が前日に化ける）
+const dayKey = (t: Timestamp): string => localDateKey(t.toDate())
 
 export default function Schedule() {
   const { googleAccessToken, calendarLinked, reconnectGoogle } = useAuth()
@@ -33,7 +30,7 @@ export default function Schedule() {
     return (id?: string) => (id ? (m.get(id) ?? '') : '')
   }, [customers])
 
-  const todayKey = new Date().toISOString().slice(0, 10)
+  const todayKey = localDateKey(new Date())
   const upcoming = schedules.filter((s) => dayKey(s.end) >= todayKey)
   const today = upcoming.filter((s) => dayKey(s.start) === todayKey)
   const later = upcoming.filter((s) => dayKey(s.start) > todayKey)

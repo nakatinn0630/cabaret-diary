@@ -8,15 +8,17 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'prompt',
-      includeAssets: ['favicon.svg'],
+      includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'og-image.png'],
       manifest: {
-        name: 'キャバ帳',
+        name: 'キャバ帳 - Cabaret Diary',
         short_name: 'キャバ帳',
-        description: 'キャスト向け顧客・スケジュール管理アプリ',
+        description:
+          '夜のおシゴト、この一冊で。キャストのための顧客管理・売上目標・スケジュール・占い・AI黒服相談アプリ。',
         theme_color: '#1f1147',
         background_color: '#1f1147',
         display: 'standalone',
         lang: 'ja',
+        categories: ['business', 'productivity', 'lifestyle'],
         icons: [
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
           { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },

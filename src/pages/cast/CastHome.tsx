@@ -6,6 +6,7 @@ import { RankBadge } from '../../components/RankBadge'
 import { SpecialContacts } from '../../components/SpecialContacts'
 import { Header, Main, Card, SectionTitle, Avatar, subTx, goldTx } from '../../components/ui'
 import { yen } from '../../lib/format'
+import { fmtHM, localDateKey } from '../../lib/datetime'
 import type { ScheduleType } from '../../types'
 
 const SCHED_ICON: Record<ScheduleType, string> = {
@@ -26,15 +27,12 @@ export default function CastHome() {
   const alerting = customers.filter((c) => c.riskScore >= 50).sort((a, b) => b.riskScore - a.riskScore)
   const topSpenders = [...customers].sort((a, b) => b.totalSpent - a.totalSpent).slice(0, 3)
 
-  const todayKey = new Date().toISOString().slice(0, 10)
+  const todayKey = localDateKey(new Date())
   const nameOf = (id?: string) => (id ? (customers.find((c) => c.id === id)?.nickname ?? '') : '')
   const todaySchedules = schedules
-    .filter((s) => s.start.toDate().toISOString().slice(0, 10) === todayKey)
+    .filter((s) => localDateKey(s.start.toDate()) === todayKey)
     .sort((a, b) => a.start.toMillis() - b.start.toMillis())
-  const hhmm = (t: (typeof schedules)[number]['start']) => {
-    const d = t.toDate()
-    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-  }
+  const hhmm = (t: (typeof schedules)[number]['start']) => fmtHM(t.toDate())
 
   return (
     <div className="h-full flex flex-col">

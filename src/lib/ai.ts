@@ -1,5 +1,6 @@
 import type { ReplySuggestion, ReplyTone } from '../types'
 import { auth } from './firebase'
+import { localDateKey } from './datetime'
 
 // F-06 返信案生成 / F-07 特別連絡 / F-08 黒服相談 / F-14 相性診断。
 // 生成の優先順位:
@@ -262,7 +263,8 @@ export interface AiParsedSchedule {
 export async function parseScheduleAI(text: string, knownCustomers: string[] = []): Promise<AiParsedSchedule | null> {
   if (!useDirect) return null
   const now = new Date()
-  const todayIso = now.toISOString().slice(0, 10)
+  // ローカル日付で渡す（UTCだとJST深夜0-8時台に「今日」が前日になり相対日付の解決がずれる）
+  const todayIso = localDateKey(now)
   const wd = ['日', '月', '火', '水', '木', '金', '土'][now.getDay()]
   const system =
     'あなたはLINEの文章から「予定（アポ）」を抽出する日本語アシスタントです。' +

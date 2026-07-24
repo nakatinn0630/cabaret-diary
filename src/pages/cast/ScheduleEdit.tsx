@@ -17,6 +17,7 @@ import { downloadIcs } from '../../lib/ics'
 import { useProfileSettings, saveProfileSettings } from '../../lib/sales'
 import type { ScheduleType } from '../../types'
 import { Header, Main, Field, Seg, useToast, inputCls, subTx } from '../../components/ui'
+import { fmtHM, localDateKey } from '../../lib/datetime'
 
 type CalTarget = 'google' | 'device'
 
@@ -59,14 +60,9 @@ function DTField({
   )
 }
 
-function toDateInput(t: Timestamp): string {
-  const d = t.toDate()
-  return d.toISOString().slice(0, 10)
-}
-function toTimeInput(t: Timestamp): string {
-  const d = t.toDate()
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-}
+// ローカル日付/時刻で input に流し込む（UTC変換するとJST深夜の編集が前日にずれる）
+const toDateInput = (t: Timestamp): string => localDateKey(t.toDate())
+const toTimeInput = (t: Timestamp): string => fmtHM(t.toDate())
 
 export default function ScheduleEdit() {
   const { sid } = useParams<{ sid: string }>()
@@ -97,7 +93,7 @@ export default function ScheduleEdit() {
   const now = new Date()
   const [type, setType] = useState<ScheduleType>('shift')
   const [customerId, setCustomerId] = useState('')
-  const [date, setDate] = useState(now.toISOString().slice(0, 10))
+  const [date, setDate] = useState(localDateKey(now))
   const [startTime, setStartTime] = useState('20:00')
   const [endTime, setEndTime] = useState('23:00')
   const [memo, setMemo] = useState('')
