@@ -1,4 +1,4 @@
-# Points Optimizer App
+# cabaret-diary App
 
 Firebase Auth/Firestoreを使用したiOSアプリです。
 
