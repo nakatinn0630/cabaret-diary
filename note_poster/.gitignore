@@ -1,0 +1,6 @@
+# ログインセッション（クッキー等を含むため絶対にコミットしない）
+auth_state.json
+
+# Python キャッシュ
+__pycache__/
+*.pyc
