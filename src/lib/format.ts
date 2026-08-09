@@ -47,3 +47,37 @@ export function tagColorClass(tag: string): string {
   for (let i = 0; i < tag.length; i++) h = (h * 31 + tag.charCodeAt(i)) >>> 0
   return TAG_PALETTE[h % TAG_PALETTE.length]
 }
+
+/** 満年齢。誕生日未設定や年が不明(1904年以前=年未入力の慣例値)は null */
+export function ageFrom(t?: Timestamp, nowMs: number = Date.now()): number | null {
+  if (!t) return null
+  const b = t.toDate()
+  if (b.getFullYear() <= 1904) return null
+  const now = new Date(nowMs)
+  let age = now.getFullYear() - b.getFullYear()
+  const beforeBday =
+    now.getMonth() < b.getMonth() || (now.getMonth() === b.getMonth() && now.getDate() < b.getDate())
+  if (beforeBday) age--
+  return age >= 0 && age < 120 ? age : null
+}
+
+/** 星座（月日から） */
+export function zodiacOf(t?: Timestamp): string | null {
+  if (!t) return null
+  const d = t.toDate()
+  const m = d.getMonth() + 1
+  const day = d.getDate()
+  const md = m * 100 + day
+  if (md >= 321 && md <= 419) return '牡羊座'
+  if (md >= 420 && md <= 520) return '牡牛座'
+  if (md >= 521 && md <= 621) return '双子座'
+  if (md >= 622 && md <= 722) return '蟹座'
+  if (md >= 723 && md <= 822) return '獅子座'
+  if (md >= 823 && md <= 922) return '乙女座'
+  if (md >= 923 && md <= 1023) return '天秤座'
+  if (md >= 1024 && md <= 1122) return '蠍座'
+  if (md >= 1123 && md <= 1221) return '射手座'
+  if (md >= 1222 || md <= 119) return '山羊座'
+  if (md >= 120 && md <= 218) return '水瓶座'
+  return '魚座'
+}

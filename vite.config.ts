@@ -4,6 +4,17 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // キャバ帳 PWA。オフライン時は閲覧のみ（Firestoreキャッシュ）を想定（v1.0 非機能要件）。
 export default defineConfig({
+  build: {
+    rollupOptions: {
+      output: {
+        // ベンダーを分離してキャッシュ効率と初期チャンクサイズを改善
+        manualChunks: {
+          firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore'],
+          react: ['react', 'react-dom', 'react-router-dom'],
+        },
+      },
+    },
+  },
   plugins: [
     react(),
     VitePWA({

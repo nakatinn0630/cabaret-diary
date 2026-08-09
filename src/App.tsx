@@ -1,27 +1,38 @@
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from './contexts/AuthContext'
 import { enableDemo, disableDemo, demoActive } from './lib/demo'
 import { showsCast, showsStore } from './lib/surface'
 import { UpdatePrompt } from './components/UpdatePrompt'
 import LoginPage from './pages/LoginPage'
-import Legal from './pages/Legal'
 import CastLayout from './pages/cast/CastLayout'
 import CastHome from './pages/cast/CastHome'
-import CustomerList from './pages/cast/CustomerList'
-import CustomerDetail from './pages/cast/CustomerDetail'
-import CustomerEdit from './pages/cast/CustomerEdit'
-import Schedule from './pages/cast/Schedule'
-import ScheduleEdit from './pages/cast/ScheduleEdit'
-import ReplyAssist from './pages/cast/ReplyAssist'
-import Consult from './pages/cast/Consult'
-import SalesReport from './pages/cast/SalesReport'
-import Compatibility from './pages/cast/Compatibility'
-import Notices from './pages/cast/Notices'
-import Menu from './pages/cast/Menu'
-import ConsoleHome from './pages/console/ConsoleHome'
-import StoreConsole from './pages/console/StoreConsole'
 import type { ReactNode } from 'react'
+
+// 初回表示(ログイン/ホーム)以外はルート単位でコード分割し、初期バンドルを軽くする。
+const Legal = lazy(() => import('./pages/Legal'))
+const CustomerList = lazy(() => import('./pages/cast/CustomerList'))
+const CustomerDetail = lazy(() => import('./pages/cast/CustomerDetail'))
+const CustomerEdit = lazy(() => import('./pages/cast/CustomerEdit'))
+const Schedule = lazy(() => import('./pages/cast/Schedule'))
+const ScheduleEdit = lazy(() => import('./pages/cast/ScheduleEdit'))
+const ReplyAssist = lazy(() => import('./pages/cast/ReplyAssist'))
+const Consult = lazy(() => import('./pages/cast/Consult'))
+const SalesReport = lazy(() => import('./pages/cast/SalesReport'))
+const Compatibility = lazy(() => import('./pages/cast/Compatibility'))
+const Notices = lazy(() => import('./pages/cast/Notices'))
+const Menu = lazy(() => import('./pages/cast/Menu'))
+const ConsoleHome = lazy(() => import('./pages/console/ConsoleHome'))
+const StoreConsole = lazy(() => import('./pages/console/StoreConsole'))
+
+// 遅延チャンク読込中のフォールバック（ブランド色の軽いスピナー）
+function PageLoader() {
+  return (
+    <div className="flex h-full items-center justify-center">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-gold border-t-transparent" aria-label="読み込み中" />
+    </div>
+  )
+}
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth()
@@ -71,6 +82,7 @@ export default function App() {
     <>
       <UpdatePrompt />
       <DemoBadge />
+      <Suspense fallback={<PageLoader />}>
       <Routes>
         <Route path="/demo" element={<DemoEntry />} />
         <Route path="/login" element={<LoginPage />} />
@@ -126,6 +138,7 @@ export default function App() {
 
         <Route path="*" element={<Navigate to={fallbackTo} replace />} />
       </Routes>
+      </Suspense>
     </>
   )
 }

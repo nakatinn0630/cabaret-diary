@@ -17,7 +17,7 @@ import {
   goldTx,
   useToast,
 } from '../../components/ui'
-import { yen, fmtMonthDay, daysUntilBirthday, tagColorClass } from '../../lib/format'
+import { yen, fmtMonthDay, daysUntilBirthday, tagColorClass, ageFrom, zodiacOf } from '../../lib/format'
 import type { FitLevel, PaymentMethod } from '../../types'
 
 const PAY_LABEL: Record<PaymentMethod, string> = { cash: '現金', card: 'カード' }
@@ -56,6 +56,12 @@ export default function CustomerDetail() {
   const c = customer
   const bdayDays = daysUntilBirthday(c.fortune?.birthday)
   const bdaySoon = bdayDays !== null && bdayDays <= 7
+  const age = ageFrom(c.fortune?.birthday)
+  const zodiac = zodiacOf(c.fortune?.birthday)
+  // F-63 同伴/アフター/指名の集計サマリ
+  const dohanCount = visits.filter((v) => v.isDohan).length
+  const afterCount = visits.filter((v) => v.isAfter).length
+  const shimeiCount = visits.filter((v) => v.isShimei).length
   const copy = async (label: string, val: string) => {
     try {
       await navigator.clipboard.writeText(val)
@@ -107,7 +113,9 @@ export default function CustomerDetail() {
               </p>
               <p className={`text-[12px] ${subTx}`}>
                 {[
-                  c.fortune?.birthday ? `🎂 ${fmtMonthDay(c.fortune.birthday)}` : '',
+                  c.fortune?.birthday
+                    ? `🎂 ${fmtMonthDay(c.fortune.birthday)}${age !== null ? `(${age})` : ''}${zodiac ? ` ${zodiac}` : ''}`
+                    : '',
                   [c.occupation, c.companyName, c.incomeRange].filter(Boolean).join(' / '),
                 ]
                   .filter(Boolean)
@@ -116,17 +124,33 @@ export default function CustomerDetail() {
             </div>
           </div>
 
-          {/* 連絡先（1タップコピー） */}
+          {/* 連絡先（発信・LINE・1タップコピー） */}
           {(c.phone || c.lineName) && (
             <div className="flex flex-wrap gap-2">
+              {c.phone && (
+                <a
+                  href={`tel:${c.phone.replace(/[^\d+]/g, '')}`}
+                  className="flex items-center gap-1.5 rounded-full bg-gold/15 border border-gold/40 px-3 py-1.5 text-[12px] font-bold min-h-[36px] text-gold"
+                >
+                  📞 発信
+                </a>
+              )}
               {c.phone && (
                 <button
                   type="button"
                   onClick={() => void copy('電話番号', c.phone!)}
                   className="flex items-center gap-1.5 rounded-full border border-night/15 dark:border-white/20 px-3 py-1.5 text-[12px] font-semibold min-h-[36px]"
                 >
-                  📞 {c.phone} <span className={subTx}>⧉</span>
+                  {c.phone} <span className={subTx}>⧉</span>
                 </button>
+              )}
+              {c.lineName && (
+                <a
+                  href="line://"
+                  className="flex items-center gap-1.5 rounded-full bg-[#06C755]/10 border border-[#06C755]/40 px-3 py-1.5 text-[12px] font-bold min-h-[36px] text-[#06a04b] dark:text-[#5ad98f]"
+                >
+                  💬 LINEを開く
+                </a>
               )}
               {c.lineName && (
                 <button
@@ -134,7 +158,7 @@ export default function CustomerDetail() {
                   onClick={() => void copy('LINE名称', c.lineName!)}
                   className="flex items-center gap-1.5 rounded-full border border-night/15 dark:border-white/20 px-3 py-1.5 text-[12px] font-semibold min-h-[36px]"
                 >
-                  💬 {c.lineName} <span className={subTx}>⧉</span>
+                  {c.lineName} <span className={subTx}>⧉</span>
                 </button>
               )}
             </div>
@@ -166,6 +190,14 @@ export default function CustomerDetail() {
               </div>
             ))}
           </div>
+          {/* 同伴/アフター/指名の集計（来店記録から） */}
+          {(dohanCount > 0 || afterCount > 0 || shimeiCount > 0) && (
+            <div className="flex flex-wrap gap-1.5">
+              <Chip className="border-gold/40 bg-gold/10">🍽️ 同伴 {dohanCount}回</Chip>
+              <Chip className="border-night/10 dark:border-white/15">🌙 アフター {afterCount}回</Chip>
+              <Chip className="border-rose/35 bg-rose/10">💅 指名 {shimeiCount}本</Chip>
+            </div>
+          )}
         </Card>
 
         {/* F-02 リスクアラート */}

@@ -6,14 +6,25 @@ import { Header, Main, Card, Avatar, Empty, inputCls, subTx } from '../../compon
 import { yen, daysUntilBirthday } from '../../lib/format'
 import type { CustomerRank } from '../../types'
 
-type SortKey = '更新' | '売上' | 'リスク'
+type SortKey = '更新' | '売上' | 'リスク' | '名前' | '来店'
 
 export default function CustomerList() {
   const navigate = useNavigate()
   const { customers, loading } = useCustomers()
   const [qText, setQText] = useState('')
-  const [rankFilter, setRankFilter] = useState<CustomerRank | 'ALL'>('ALL')
+  // ランクは複数選択可（空=すべて）
+  const [rankFilter, setRankFilter] = useState<Set<CustomerRank>>(new Set())
   const [sort, setSort] = useState<SortKey>('更新')
+
+  const toggleRank = (r: CustomerRank | 'ALL') => {
+    setRankFilter((prev) => {
+      if (r === 'ALL') return new Set()
+      const next = new Set(prev)
+      if (next.has(r)) next.delete(r)
+      else next.add(r)
+      return next
+    })
+  }
 
   const view = useMemo(() => {
     let list = customers
@@ -27,10 +38,13 @@ export default function CustomerList() {
           c.tags.some((t) => t.includes(q)),
       )
     }
-    if (rankFilter !== 'ALL') list = list.filter((c) => c.rank === rankFilter)
+    if (rankFilter.size > 0) list = list.filter((c) => c.rank !== undefined && rankFilter.has(c.rank))
     const sorted = [...list]
     if (sort === '売上') sorted.sort((a, b) => b.totalSpent - a.totalSpent)
     else if (sort === 'リスク') sorted.sort((a, b) => b.riskScore - a.riskScore)
+    else if (sort === '名前') sorted.sort((a, b) => a.nickname.localeCompare(b.nickname, 'ja'))
+    else if (sort === '来店')
+      sorted.sort((a, b) => (b.lastVisitAt?.toMillis() ?? 0) - (a.lastVisitAt?.toMillis() ?? 0))
     return sorted
   }, [customers, qText, rankFilter, sort])
 
@@ -58,36 +72,40 @@ export default function CustomerList() {
           className={inputCls}
         />
         <div className="flex gap-1.5 overflow-x-auto pb-1">
-          {(['ALL', ...RANK_OPTIONS] as const).map((r) => (
-            <button
-              key={r}
-              type="button"
-              onClick={() => setRankFilter(r)}
-              className={`px-3.5 py-1.5 rounded-full text-[12px] font-bold whitespace-nowrap border ${
-                rankFilter === r
-                  ? 'bg-night text-white dark:bg-gold dark:text-night border-transparent'
-                  : 'border-night/15 dark:border-white/15'
-              }`}
-            >
-              {r === 'ALL' ? 'すべて' : r}
-            </button>
-          ))}
+          {(['ALL', ...RANK_OPTIONS] as const).map((r) => {
+            const active = r === 'ALL' ? rankFilter.size === 0 : rankFilter.has(r)
+            return (
+              <button
+                key={r}
+                type="button"
+                onClick={() => toggleRank(r)}
+                aria-pressed={active}
+                className={`px-3.5 py-1.5 rounded-full text-[12px] font-bold whitespace-nowrap border ${
+                  active
+                    ? 'bg-night text-white dark:bg-gold dark:text-night border-transparent'
+                    : 'border-night/15 dark:border-white/15'
+                }`}
+              >
+                {r === 'ALL' ? 'すべて' : r}
+              </button>
+            )
+          })}
         </div>
-        <div className="flex items-center gap-2">
-          <span className={`text-[11px] ${subTx}`}>並び替え</span>
-          {(['更新', '売上', 'リスク'] as const).map((s) => (
+        <div className="flex items-center gap-2 overflow-x-auto">
+          <span className={`text-[11px] shrink-0 ${subTx}`}>並び替え</span>
+          {(['更新', '来店', '名前', '売上', 'リスク'] as const).map((s) => (
             <button
               key={s}
               type="button"
               onClick={() => setSort(s)}
-              className={`text-[12px] font-semibold px-3 py-1.5 rounded-full ${
+              className={`text-[12px] font-semibold px-3 py-1.5 rounded-full whitespace-nowrap shrink-0 ${
                 sort === s ? 'bg-gold/15 text-gold border border-gold/40' : subTx
               }`}
             >
               {s}
             </button>
           ))}
-          <span className={`ml-auto text-[11px] ${subTx}`}>{view.length}件</span>
+          <span className={`ml-auto text-[11px] whitespace-nowrap shrink-0 ${subTx}`}>{view.length}件</span>
         </div>
       </div>
 

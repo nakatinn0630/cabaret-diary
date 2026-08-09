@@ -1,12 +1,17 @@
+import { useState } from 'react'
 import type { Visit, PaymentMethod } from '../types'
 import { yen, fmtDate } from '../lib/format'
 import { Chip, Empty, subTx, goldTx } from './ui'
 
 const PAY_LABEL: Record<PaymentMethod, string> = { cash: '現金', card: 'カード' }
+const INITIAL_COUNT = 5
 
-// F-03 来店履歴の時系列表示（思い出タイムライン）
-export function VisitTimeline({ visits }: { visits: Visit[] }) {
-  if (visits.length === 0) return <Empty>来店記録がありません</Empty>
+// F-03 来店履歴の時系列表示（思い出タイムライン）。長くなるので直近5件＋折り畳み。
+export function VisitTimeline({ visits: all }: { visits: Visit[] }) {
+  const [showAll, setShowAll] = useState(false)
+  if (all.length === 0) return <Empty>来店記録がありません</Empty>
+  const visits = showAll ? all : all.slice(0, INITIAL_COUNT)
+  const hidden = all.length - visits.length
 
   return (
     <>
@@ -57,6 +62,24 @@ export function VisitTimeline({ visits }: { visits: Visit[] }) {
           </div>
         )
       })}
+      {hidden > 0 && (
+        <button
+          type="button"
+          onClick={() => setShowAll(true)}
+          className="w-full min-h-[40px] rounded-xl border border-night/10 dark:border-white/15 text-[12px] font-bold text-gold"
+        >
+          もっと見る（あと{hidden}件）
+        </button>
+      )}
+      {showAll && all.length > INITIAL_COUNT && (
+        <button
+          type="button"
+          onClick={() => setShowAll(false)}
+          className={`w-full min-h-[36px] text-[12px] font-semibold ${subTx}`}
+        >
+          折りたたむ
+        </button>
+      )}
     </>
   )
 }
