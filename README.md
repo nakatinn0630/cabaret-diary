@@ -36,7 +36,7 @@
 ## 技術スタック
 - **フロント**: React 18 + Vite + TypeScript(strict) + Tailwind CSS + react-router-dom v6 + PWA（vite-plugin-pwa）
 - **バックエンド**: Firebase（Authentication / Firestore / Hosting）
-- **AI**: OpenAI互換API（既定は Groq / `llama-3.3-70b-versatile`）。`VITE_AI_*` で差し替え可能。
+- **AI**: OpenAI互換API（既定は Groq / `openai/gpt-oss-120b`）。`VITE_AI_*` で差し替え可能。
 - **カレンダー**: Google Calendar API 連携 ＋ iCalendar(.ics) 生成（端末カレンダー登録）
 
 ## サーフェス分離（キャスト / 店舗）
