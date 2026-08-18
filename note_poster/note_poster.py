@@ -3,13 +3,15 @@
 note_poster.py
 
 note にログインし、新規記事に本文を流し込んで「下書き保存」までを自動化する。
-公開ボタンは押さない（最終確認と公開は人間が行う）。
+--publish を付けた場合のみ、確認プロンプトを経て「公開」まで実行する。
 
 使い方:
     python note_poster.py 5
     python note_poster.py 5 --source note      # note掲載用テキストを本文に使う
     python note_poster.py 5 --headful          # ブラウザを表示して実行（推奨・初回）
     python note_poster.py 5 --content-dir ~/sorano-tobikata
+    python note_poster.py 5 --publish          # 下書き保存後に公開まで実行
+    python note_poster.py 5 --publish --yes    # 公開前の確認プロンプトを省略
 
 前提:
     1) 先に setup_credentials.py を実行して認証情報を Keychain に保存しておく
@@ -21,7 +23,8 @@ note にログインし、新規記事に本文を流し込んで「下書き保
       2回目以降はログインを省略する。
     - 2要素認証/CAPTCHA/普段と違う端末確認などが出た場合は、
       --headful で起動し、人間がブラウザ上で対応する。
-    - 「下書き保存」までで必ず止まる。公開は自動化しない。
+    - デフォルトは「下書き保存」まで。公開するのは --publish を
+      明示した場合だけで、実行前に必ず確認プロンプトを出す（--yes で省略可）。
 """
 
 import argparse
@@ -248,6 +251,72 @@ def create_draft(page, title: str, body: str):
     return True
 
 
+def publish_article(page, title: str, assume_yes: bool) -> bool:
+    """
+    エディタ画面から「公開に進む」→「投稿する」まで実行して記事を公開する。
+    create_draft() で本文入力が終わった状態で呼ぶこと。
+    """
+    if not assume_yes:
+        print()
+        print(f"記事「{title}」を note に公開します。")
+        answer = input("本当に公開しますか？ [y/N]: ").strip().lower()
+        if answer != "y":
+            print("公開をキャンセルしました。下書きとして保存されています。")
+            return False
+
+    # --- 公開設定画面へ進む ---
+    proceeded = False
+    for pb in [
+        'button:has-text("公開に進む")',
+        'button:has-text("公開設定")',
+        'button:has-text("次へ")',
+    ]:
+        if page.locator(pb).count() > 0:
+            try:
+                page.locator(pb).first.click()
+                proceeded = True
+                break
+            except Exception:
+                continue
+
+    if not proceeded:
+        print("エラー: 「公開に進む」ボタンが見つかりませんでした。")
+        print("note のUI変更の可能性があります。下書きは保存済みなので、")
+        print("お手数ですが note の画面から手動で公開してください。")
+        return False
+
+    time.sleep(3)
+
+    # --- 公開設定画面で「投稿する」を押す ---
+    # ハッシュタグや有料設定はデフォルトのまま（必要なら手動で設定して公開する）
+    posted = False
+    for fb in [
+        'button:has-text("投稿する")',
+        'button:has-text("公開する")',
+    ]:
+        if page.locator(fb).count() > 0:
+            try:
+                page.locator(fb).first.click()
+                posted = True
+                break
+            except Exception:
+                continue
+
+    if not posted:
+        print("エラー: 「投稿する」ボタンが見つかりませんでした。")
+        print("公開設定画面までは進んでいます。ブラウザ上で手動で投稿してください。")
+        return False
+
+    time.sleep(4)
+
+    # 公開後は記事ページ（note.com/xxx/n/xxxx）へ遷移する
+    if "/n/" in page.url:
+        print(f"公開しました: {page.url}")
+    else:
+        print("投稿ボタンを押しました。note のダッシュボードで公開状態を確認してください。")
+    return True
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="note に第X話を下書き投稿する（公開はしない）"
@@ -264,6 +333,14 @@ def main():
     parser.add_argument(
         "--headful", action="store_true",
         help="ブラウザを表示して実行（初回・認証対応時に推奨）",
+    )
+    parser.add_argument(
+        "--publish", action="store_true",
+        help="下書き保存後に公開まで実行する（確認プロンプトあり）",
+    )
+    parser.add_argument(
+        "--yes", action="store_true",
+        help="--publish の確認プロンプトを省略する",
     )
     args = parser.parse_args()
 
@@ -297,9 +374,14 @@ def main():
             login_if_needed(context, page, args.headful)
             ok = create_draft(page, title, body)
             if ok:
+                published = False
+                if args.publish:
+                    published = publish_article(page, title, args.yes)
+
                 print("\n完了しました。")
-                print("note のダッシュボード → 下書き から内容を確認し、")
-                print("問題なければ手動で「公開」してください。")
+                if not published:
+                    print("note のダッシュボード → 下書き から内容を確認し、")
+                    print("問題なければ手動で「公開」してください。")
                 # 確認のため少し待つ（headful時に画面を見られるように）
                 if args.headful:
                     input("ブラウザを閉じてよければ Enter を押してください...")
