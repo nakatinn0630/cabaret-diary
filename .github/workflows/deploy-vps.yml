@@ -16,11 +16,20 @@
 # ※ VITE_ で始まる値はビルド成果物(JS)に埋め込まれ、閲覧者から見えます(Firebase の構成値は公開前提の値。
 #   VITE_AI_API_KEY も見える点は Firebase Hosting 版と同じ。秘匿したい場合は VITE_AI_PROXY_URL に切り替える)。
 #
-# 配備は手動実行(workflow_dispatch)のみ。協業ルール「承認なしに配備しない」のため push トリガーは置かない。
+# 配備のタイミング:
+#   - 手動実行(Actions → deploy-vps → Run workflow)はいつでも可
+#   - main への反映(PR のマージ)で自動配備するのは、Variables の AUTO_DEPLOY が "true" のときだけ。
+#     協業ルール上「main へのマージ=本番配備」なので、マージ前の PR レビュー・承認が配備の承認になる。
+#     docs/ と *.md だけの変更では配備しない。
 name: deploy-vps
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
 
 concurrency:
   group: deploy-vps-${{ github.repository }}
@@ -31,6 +40,7 @@ permissions:
 
 jobs:
   deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.AUTO_DEPLOY == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:

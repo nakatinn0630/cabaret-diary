@@ -14,6 +14,31 @@
 | 配備方法 | GitHub Actions「deploy-vps」を手動実行(`.github/workflows/deploy-vps.yml`) |
 | 追加の月額費用 | 0円(既存の共用 VPS に同居) |
 
+## 自動セットアップ(Mac で1コマンド)
+
+下の「手順」①〜⑥を、Mac(Mac mini など)で自動実行するスクリプトがあります。何度実行しても安全です(済んだ手順は飛ばします)。
+
+```bash
+gh repo clone nakatinn0630/cabaret-diary && cd cabaret-diary
+git checkout feat/vps-deploy        # PR マージ後は不要(main にある)
+bash scripts/setup-vps.sh --dry-run # 確認だけ(何も変更しない)
+bash scripts/setup-vps.sh           # 本番。PR のマージ前に y/N を1回聞く(--yes で省略)
+```
+
+Finder からは `scripts/setup-vps.command` をダブルクリックでも動きます。
+
+| 必要なもの(Mac) | 用途 | 無いとき |
+|---|---|---|
+| `gh`(ログイン済み) | Secrets 登録・PR マージ・配備の実行 | 停止(`brew install gh` → `gh auth login`) |
+| `~/.ssh/vps_portal`(VPS の root 鍵) | add-app.sh の実行 | 停止(構築に使った Mac から安全にコピー) |
+| Node.js(`npx`) | Firebase の構成値の取得(初回はブラウザでログイン) | 停止 |
+| `gcloud`(ログイン済み) | Firebase の承認済みドメインの追加 | ブラウザで追加画面を開いて案内(Enter で続行) |
+
+- **DNS だけは自動化していません**(Xserver レンタルサーバーの DNS を操作する API を確認できていないため)。未設定なら案内を出し、反映されるまで最大60分待ってから続きを実行します。
+- 秘密鍵・API キーは画面・ログに出さず、`gh secret set` に直接渡します。VPS 上の一時鍵は登録後に削除します。
+- 社内ポータルの PR(配備キット)は**マージしません**(マージするとポータル本番の再配備が走るため)。キットはブランチ `feat/vps-static-spa` から取得します。
+- 最後に Variables `AUTO_DEPLOY=true` を設定し、以後は main への反映で自動配備されます(`--no-auto-deploy` で無効)。
+
 ## 前提
 
 - 共用 VPS のキット(nakatinn0630/yell-staff-portal の `deploy/vps/add-app.sh`)に **`--spa` オプションが入っていること**。
