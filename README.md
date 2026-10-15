@@ -76,6 +76,8 @@ docs/             要件定義・DB設計・デプロイ手順・プロンプト
 ```
 
 ## デプロイ
+**共用 XServer VPS への配備**(静的配信・GitHub Actions 手動実行): [`docs/デプロイ_VPS.md`](docs/デプロイ_VPS.md)
+
 Firebase Hosting + Firestore ルール。手順は [`docs/デプロイ手順.md`](docs/デプロイ手順.md) / 分離配信は [`docs/デプロイ_Cabaret-Diary分離手順.md`](docs/デプロイ_Cabaret-Diary分離手順.md)。
 ```bash
 npm run build
