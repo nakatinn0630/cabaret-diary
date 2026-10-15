@@ -1,0 +1,152 @@
+# deploy-vps.yml — キャバ帳を AINOWA の共用 XServer VPS(nginx の静的配信)へ配備する。
+#
+# 元: nakatinn0630/yell-staff-portal の deploy/vps/templates/deploy-app.yml(APP_TYPE=static)。
+# 違いは「ビルド時に VITE_* を Secrets / Variables から渡す」点だけ(.env.production をリポジトリに置かないため)。
+#
+# 事前準備(docs/デプロイ_VPS.md):
+#   1) VPS で `bash add-app.sh kyabacho kyabacho.ainowa.net 3010 <メール> --spa`
+#   2) 表示された値を、このリポジトリの Settings → Secrets and variables → Actions に登録
+#      Secrets  : VPS_HOST / VPS_PORT / VPS_USER(=deploy)/ VPS_SSH_KEY / VPS_KNOWN_HOSTS(任意)
+#                 VITE_FIREBASE_API_KEY / VITE_FIREBASE_AUTH_DOMAIN / VITE_FIREBASE_PROJECT_ID /
+#                 VITE_FIREBASE_STORAGE_BUCKET / VITE_FIREBASE_MESSAGING_SENDER_ID / VITE_FIREBASE_APP_ID /
+#                 VITE_AI_API_KEY(任意) / VITE_AI_PROXY_URL(任意)
+#      Variables: APP_NAME(=kyabacho)/ APP_URL(任意。例 https://kyabacho.ainowa.net)/
+#                 VITE_AI_BASE_URL(任意)/ VITE_AI_MODEL(任意)/ BUILD_SCRIPT(任意。既定 build)
+#
+# ※ VITE_ で始まる値はビルド成果物(JS)に埋め込まれ、閲覧者から見えます(Firebase の構成値は公開前提の値。
+#   VITE_AI_API_KEY も見える点は Firebase Hosting 版と同じ。秘匿したい場合は VITE_AI_PROXY_URL に切り替える)。
+#
+# 配備のタイミング:
+#   - 手動実行(Actions → deploy-vps → Run workflow)はいつでも可
+#   - main への反映(PR のマージ)で自動配備するのは、Variables の AUTO_DEPLOY が "true" のときだけ。
+#     協業ルール上「main へのマージ=本番配備」なので、マージ前の PR レビュー・承認が配備の承認になる。
+#     docs/ と *.md だけの変更では配備しない。
+name: deploy-vps
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+
+concurrency:
+  group: deploy-vps-${{ github.repository }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.AUTO_DEPLOY == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      APP_NAME: ${{ vars.APP_NAME }}
+      APP_URL: ${{ vars.APP_URL }}
+      BUILD_SCRIPT: ${{ vars.BUILD_SCRIPT || 'build' }}
+      OUTPUT_DIR: dist
+    steps:
+      - name: 設定の確認
+        env:
+          SEC_HOST: ${{ secrets.VPS_HOST }}
+          SEC_USER: ${{ secrets.VPS_USER }}
+          SEC_KEY: ${{ secrets.VPS_SSH_KEY }}
+          FB_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          FB_PROJECT: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          FB_APP: ${{ secrets.VITE_FIREBASE_APP_ID }}
+        run: |
+          set -euo pipefail
+          if ! printf '%s' "$APP_NAME" | grep -Eq '^[a-z0-9][a-z0-9-]{0,26}[a-z0-9]$'; then
+            echo "::error::Variables の APP_NAME が未設定か形式が不正です(例: kyabacho)"; exit 1
+          fi
+          case "$BUILD_SCRIPT" in build|build:cast|build:store) ;; *) echo "::error::BUILD_SCRIPT は build / build:cast / build:store のいずれか"; exit 1 ;; esac
+          missing=""
+          [ -n "$SEC_HOST" ] || missing="$missing VPS_HOST"
+          [ -n "$SEC_USER" ] || missing="$missing VPS_USER"
+          [ -n "$SEC_KEY" ] || missing="$missing VPS_SSH_KEY"
+          [ -n "$FB_KEY" ] || missing="$missing VITE_FIREBASE_API_KEY"
+          [ -n "$FB_PROJECT" ] || missing="$missing VITE_FIREBASE_PROJECT_ID"
+          [ -n "$FB_APP" ] || missing="$missing VITE_FIREBASE_APP_ID"
+          [ -z "$missing" ] || { echo "::error::Secrets が未設定です:$missing"; exit 1; }
+          echo "配備先: $APP_NAME (static+spa) → /srv/apps/$APP_NAME/app/ / ビルド: npm run $BUILD_SCRIPT"
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: ビルド
+        env:
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+          VITE_AI_API_KEY: ${{ secrets.VITE_AI_API_KEY }}
+          VITE_AI_PROXY_URL: ${{ secrets.VITE_AI_PROXY_URL }}
+          VITE_AI_BASE_URL: ${{ vars.VITE_AI_BASE_URL || 'https://api.groq.com/openai/v1' }}
+          VITE_AI_MODEL: ${{ vars.VITE_AI_MODEL || 'llama-3.3-70b-versatile' }}
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm run "$BUILD_SCRIPT"
+          [ "$BUILD_SCRIPT" = build ] || OUTPUT_DIR="dist-${BUILD_SCRIPT#build:}"
+          echo "OUTPUT_DIR=$OUTPUT_DIR" >> "$GITHUB_ENV"
+
+      - name: 配備物を組み立てる
+        run: |
+          set -euo pipefail
+          [ -f "$OUTPUT_DIR/index.html" ] || { echo "::error::$OUTPUT_DIR/index.html がありません"; exit 1; }
+          rm -rf deploy_out; mkdir -p deploy_out
+          cp -a "$OUTPUT_DIR"/. deploy_out/
+          # 秘密情報が配備物に混ざらないように .env 系は除く
+          find deploy_out -name '.env*' -type f -delete
+          du -sh deploy_out
+
+      - name: SSH 設定
+        env:
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          if [ -n "$VPS_KNOWN_HOSTS" ]; then
+            printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+            echo "SSH_OPTS=-p ${VPS_PORT:-22} -o StrictHostKeyChecking=yes" >> "$GITHUB_ENV"
+          else
+            echo "SSH_OPTS=-p ${VPS_PORT:-22} -o StrictHostKeyChecking=accept-new" >> "$GITHUB_ENV"
+          fi
+
+      - name: VPS へ転送(rsync)
+        env:
+          REMOTE: ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}
+        run: |
+          # index.html は最後に入れ替える(古い index.html が新しい assets を参照して壊れる時間を作らない)
+          rsync -rltz --checksum --exclude=/index.html \
+            --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r \
+            -e "ssh $SSH_OPTS" deploy_out/ "$REMOTE:/srv/apps/$APP_NAME/app/"
+          rsync -rltz --checksum --delete \
+            --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r \
+            -e "ssh $SSH_OPTS" deploy_out/ "$REMOTE:/srv/apps/$APP_NAME/app/"
+
+      - name: 公開 URL の疎通確認
+        run: |
+          if [ -z "$APP_URL" ]; then
+            echo "Variables の APP_URL が未設定のため疎通確認をスキップします"; exit 0
+          fi
+          base="${APP_URL%/}"
+          for p in / /demo /login; do
+            curl -fsS -o /dev/null -m 20 --retry 6 --retry-delay 5 --retry-all-errors -w "$base$p -> HTTP %{http_code}\n" "$base$p"
+          done
+
+      - name: SSH 鍵を片付ける
+        if: always()
+        run: rm -f ~/.ssh/id_ed25519 ~/.ssh/known_hosts
