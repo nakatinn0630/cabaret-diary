@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
-import { doc, getDoc } from 'firebase/firestore'
-import { db } from '../lib/firebase'
+import { doc, getDoc } from '../lib/fsdb'
+import { db } from '../lib/backend'
 import { saveProfileSettings } from '../lib/sales'
 import { demoActive } from '../lib/demo'
 import {

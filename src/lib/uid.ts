@@ -1,4 +1,4 @@
-import { auth } from './firebase'
+import { auth } from './backend'
 import { demoActive, DEMO_UID } from './demo'
 
 // ローカル保存(kyabacho_*)のキーなどに使う uid の解決を一元化する。

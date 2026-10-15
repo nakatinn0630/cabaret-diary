@@ -1,12 +1,21 @@
 import { useState } from 'react'
-import { Navigate, Link } from 'react-router-dom'
+import { Navigate, Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { subTx } from '../components/ui'
+import { AI_ENABLED } from '../lib/features'
+
+const LOGIN_ERRORS: Record<string, string> = {
+  cancelled: 'ログインをキャンセルしました。',
+  state: 'ログインの有効期限が切れました。もう一度お試しください。',
+  google: 'Google でのログインに失敗しました。時間をおいて再度お試しください。',
+}
 
 // クロードデザインの LoginScreen を移植（ブランド表現＋実 Google 認証）
 export default function LoginPage() {
   const { user, loading, signInWithGoogle } = useAuth()
-  const [error, setError] = useState<string | null>(null)
+  const [params] = useSearchParams()
+  // サーバーの Google ログインから戻ったときのエラー(/login?error=...)
+  const [error, setError] = useState<string | null>(() => LOGIN_ERRORS[params.get('error') ?? ''] ?? null)
   const [busy, setBusy] = useState(false)
 
   if (loading) return null
@@ -42,7 +51,7 @@ export default function LoginPage() {
       </div>
 
       <ul className={`flex flex-wrap justify-center gap-1.5 max-w-[320px] text-[11px] font-semibold ${subTx}`}>
-        {['顧客管理', '売上目標', 'スケジュール', '占い・相性', 'AI黒服相談'].map((f) => (
+        {['顧客管理', '売上目標', 'スケジュール', ...(AI_ENABLED ? ['占い・相性', 'AI黒服相談'] : [])].map((f) => (
           <li key={f} className="rounded-full border border-gold/40 px-2.5 py-1">
             {f}
           </li>

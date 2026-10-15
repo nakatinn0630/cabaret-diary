@@ -9,8 +9,8 @@ import {
   Timestamp,
   type DocumentData,
   type QueryDocumentSnapshot,
-} from 'firebase/firestore'
-import { auth, db } from './firebase'
+} from './fsdb'
+import { auth, db } from './backend'
 import { demoActive } from './demo'
 import type { LineImport } from '../types'
 import { analyzeTone, type ParsedLine } from './lineParser'

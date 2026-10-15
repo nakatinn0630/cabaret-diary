@@ -4,6 +4,7 @@ import type { Customer, Schedule } from '../types'
 import { computeSpecialContacts } from '../lib/recommend'
 import { generateSpecialContact } from '../lib/ai'
 import { Card, subTx, goldTx, useToast } from './ui'
+import { AI_ENABLED } from '../lib/features'
 
 // F-07 「営業じゃない特別な連絡」レコメンド（今日のひとこと連絡）
 export function SpecialContacts({
@@ -73,14 +74,17 @@ export function SpecialContacts({
                 {c.reason}
               </span>
             </span>
-            <button
-              type="button"
-              onClick={() => void gen(c.customer.id, c.customer.nickname, c.reason, c.hook)}
-              disabled={busy === c.customer.id}
-              className="text-[12px] font-bold text-gold disabled:opacity-60"
-            >
-              {busy === c.customer.id ? '生成中…' : texts[c.customer.id] ? '再生成' : '文面を作る'}
-            </button>
+            {/* 文面の作成は生成AIを使うため、蓋閉じ中は出さない(おすすめの一覧は端末内の計算なので残す) */}
+            {AI_ENABLED && (
+              <button
+                type="button"
+                onClick={() => void gen(c.customer.id, c.customer.nickname, c.reason, c.hook)}
+                disabled={busy === c.customer.id}
+                className="text-[12px] font-bold text-gold disabled:opacity-60"
+              >
+                {busy === c.customer.id ? '生成中…' : texts[c.customer.id] ? '再生成' : '文面を作る'}
+              </button>
+            )}
           </div>
           {texts[c.customer.id] && (
             <div className="mt-2 rounded-xl p-3 bg-night/[0.04] dark:bg-white/[0.05]">

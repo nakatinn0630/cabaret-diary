@@ -1,3 +1,4 @@
+import { AI_ENABLED } from '../../lib/features'
 import { useNavigate } from 'react-router-dom'
 import { useCustomers } from '../../lib/customers'
 import { useProfileSettings } from '../../lib/sales'
@@ -97,7 +98,7 @@ export default function CastHome() {
           })
         )}
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className={`grid gap-3 ${AI_ENABLED ? 'grid-cols-2' : 'grid-cols-1'}`}>
           <Card onClick={() => navigate('/sales')} className="p-4 space-y-1">
             <span className="text-[20px]" aria-hidden="true">
               📊
@@ -105,13 +106,15 @@ export default function CastHome() {
             <p className="text-[13px] font-bold">売上レポート</p>
             <p className={`text-[12px] ${goldTx}`}>保証カウントダウン</p>
           </Card>
-          <Card onClick={() => navigate('/consult')} className="p-4 space-y-1">
-            <span className="text-[20px]" aria-hidden="true">
-              🤵
-            </span>
-            <p className="text-[13px] font-bold">AI黒服「クロ」</p>
-            <p className={`text-[12px] ${subTx}`}>困りごとを相談</p>
-          </Card>
+          {AI_ENABLED && (
+            <Card onClick={() => navigate('/consult')} className="p-4 space-y-1">
+              <span className="text-[20px]" aria-hidden="true">
+                🤵
+              </span>
+              <p className="text-[13px] font-bold">AI黒服「クロ」</p>
+              <p className={`text-[12px] ${subTx}`}>困りごとを相談</p>
+            </Card>
+          )}
         </div>
 
         {/* F-07 特別な連絡レコメンド（今日のひとこと連絡） */}

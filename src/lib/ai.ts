@@ -1,6 +1,6 @@
 import type { ReplySuggestion, ReplyTone } from '../types'
-import { auth } from './firebase'
 import { localDateKey } from './datetime'
+import { AI_ENABLED } from './features'
 
 // F-06 返信案生成 / F-07 特別連絡 / F-08 黒服相談 / F-14 相性診断。
 // 生成の優先順位:
@@ -12,29 +12,21 @@ import { localDateKey } from './datetime'
 //   VITE_AI_PROXY_URL のサーバ経由に切り替える（本コードはそのまま利用可）。
 // 既定は DeepSeek(OpenAI互換)。Groq を使う場合は BASE_URL と MODEL を環境変数で上書き。
 
-const PROXY_URL = import.meta.env.VITE_AI_PROXY_URL
+// 蓋閉じ中(AI_ENABLED=false)は、設定があっても外部のAIサービスへ一切送信しない
+const PROXY_URL = AI_ENABLED ? import.meta.env.VITE_AI_PROXY_URL : undefined
 // 後方互換: 旧 VITE_GROQ_API_KEY / VITE_GROQ_MODEL も引き続き解釈する
 const AI_KEY = import.meta.env.VITE_AI_API_KEY || import.meta.env.VITE_GROQ_API_KEY
 const AI_BASE = (import.meta.env.VITE_AI_BASE_URL || 'https://api.deepseek.com').replace(/\/$/, '')
 const AI_MODEL =
   import.meta.env.VITE_AI_MODEL || import.meta.env.VITE_GROQ_MODEL || 'deepseek-chat'
 const AI_URL = `${AI_BASE}/chat/completions`
-const useDirect = Boolean(AI_KEY)
+const useDirect = AI_ENABLED && Boolean(AI_KEY)
 
 export type AiSource = 'proxy' | 'api' | 'local'
 
-// ai-proxy は Firebase IDトークンで認証（SEC-01/11）。
+// ai-proxy はキャバ帳サーバーと同じサイトに置く想定。ログイン Cookie で認証する(SEC-01/11)。
 async function proxyHeaders(): Promise<Record<string, string>> {
-  const base: Record<string, string> = { 'Content-Type': 'application/json' }
-  const u = auth?.currentUser
-  if (u) {
-    try {
-      base.Authorization = `Bearer ${await u.getIdToken()}`
-    } catch {
-      /* トークン取得失敗時は未認証で送る（サーバが401を返す） */
-    }
-  }
-  return base
+  return { 'Content-Type': 'application/json', 'X-Kyabacho': '1' }
 }
 
 /** SEC-10: 送信前の軽量マスキング（電話番号など）。プロキシ・Groq いずれの外部送信にも適用 */

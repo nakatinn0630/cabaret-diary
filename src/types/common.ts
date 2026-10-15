@@ -1,4 +1,4 @@
-import type { Timestamp } from 'firebase/firestore'
+import type { Timestamp } from '../lib/fsdb'
 
 // Firestore の Timestamp をドメイン型でも使う（日時の正本）。
 // UI/モックでは Timestamp.toDate() で Date に変換して表示する。

@@ -18,3 +18,11 @@ dist-ssr
 # Firebase CLI のデプロイキャッシュ
 .firebase/
 firebase-debug.log
+
+# キャバ帳サーバー(server/)のローカル実行で作られるもの
+server/data/
+server/public/
+deploy_out/
+# Firebase からの移行データ・サービスアカウント鍵(個人情報・秘密を含む)
+*export*.json
+*-firebase-adminsdk-*.json

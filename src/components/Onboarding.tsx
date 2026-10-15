@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useProfileSettings, saveProfileSettings } from '../lib/sales'
 import { inputCls, subTx, useToast } from './ui'
+import { AI_ENABLED } from '../lib/features'
 
 // 初回オンボーディング：源氏名の設定＋使い方の要点を案内。
 // 源氏名が未設定（＝新規）かつ未完了フラグのときだけ表示する。
@@ -9,10 +10,20 @@ const doneKey = (uid?: string) => `kyabacho_onboarded_${uid ?? 'anon'}`
 
 const GUIDE: { icon: string; title: string; body: string }[] = [
   { icon: '👥', title: '顧客を登録', body: 'あだ名・LINE名・誕生日・タグで管理。来店で「指名」を付けると指名本数が自動集計されます。' },
-  { icon: '📅', title: '予定とカレンダー', body: 'LINEを貼り付けるとAIが日時を読み取り。Googleカレンダー連携で自動同期もできます。' },
+  {
+    icon: '📅',
+    title: '予定とカレンダー',
+    body: AI_ENABLED
+      ? 'LINEを貼り付けるとAIが日時を読み取り。Googleカレンダー連携で自動同期もできます。'
+      : 'LINEを貼り付けると日時を読み取り。Googleカレンダー連携で自動同期もできます。',
+  },
   { icon: '📊', title: '売上・目標・レース', body: '今月の目標（月締めカウントダウン）と、看板レース等の試用期間レースを設定。売上や指名に自動連動できます。' },
-  { icon: '🔮', title: '占い・相性診断', body: 'お客様との相性をAIが鑑定。結果は端末内にだけ保存されます。' },
-  { icon: '🤵', title: 'AI黒服「クロ」', body: '接客や安全の悩みを相談。内容は端末内のみに保存。危険を感じたら必ず担当・お店へ連絡を。' },
+  ...(AI_ENABLED
+    ? [
+        { icon: '🔮', title: '占い・相性診断', body: 'お客様との相性をAIが鑑定。結果は端末内にだけ保存されます。' },
+        { icon: '🤵', title: 'AI黒服「クロ」', body: '接客や安全の悩みを相談。内容は端末内のみに保存。危険を感じたら必ず担当・お店へ連絡を。' },
+      ]
+    : []),
 ]
 
 export function Onboarding() {

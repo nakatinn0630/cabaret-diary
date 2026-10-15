@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Timestamp } from 'firebase/firestore'
+import { Timestamp } from '../lib/fsdb'
 import { addVisit } from '../lib/customers'
 import { localDateKey } from '../lib/datetime'
 import { Field, Seg, Toggle, DateSelect, inputCls, subTx, useToast } from './ui'
