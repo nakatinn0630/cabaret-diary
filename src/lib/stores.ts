@@ -130,7 +130,10 @@ export function useStore(storeId: string | undefined): Store | null {
 export async function createInvite(storeId: string, role: Exclude<StoreRole, 'manager'>): Promise<string> {
   if (demoActive()) return 'demo_store.DEMO01'
   const { uid } = requireUser()
-  const rand = Array.from({ length: 6 }, (_, i) => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[(storeId.charCodeAt(i % storeId.length) + i * 7) % 31]).join('')
+  // 推測されないよう乱数で作る(以前は storeId から計算しており、店の ID が分かればコードも分かった)
+  const CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  const bytes = crypto.getRandomValues(new Uint8Array(10))
+  const rand = Array.from(bytes, (b) => CHARS[b % CHARS.length]).join('')
   const code = `${storeId}.${rand}`
   await setDoc(doc(db, 'stores', storeId, 'invites', code), {
     code,

@@ -39,6 +39,7 @@ export function validateValue(v, depth = 0) {
     }
     for (const [k, x] of Object.entries(v)) {
       if (k.startsWith('$')) throw new BadRequest('$ で始まるフィールド名は使えません')
+      if (k.split('.').some((seg) => FORBIDDEN_KEYS.has(seg))) throw new BadRequest(`使えないフィールド名です: ${k}`)
       if (k.length === 0 || k.length > 1500) throw new BadRequest('フィールド名が不正です')
       validateValue(x, depth + 1)
     }
@@ -46,6 +47,9 @@ export function validateValue(v, depth = 0) {
   }
   throw new BadRequest('保存できない値です')
 }
+
+// オブジェクトの仕組み(プロトタイプ)に触れる名前は、保存内容とアクセス判定がずれる原因になるため使わせない
+const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
 
 export class BadRequest extends Error {
   constructor(msg) {
@@ -122,7 +126,7 @@ export function applyUpdate(base, patch, now) {
   const out = structuredClone(isPlainObject(base) ? base : {})
   for (const [path, v] of Object.entries(patch)) {
     const keys = path.split('.')
-    if (keys.some((k) => !k)) throw new BadRequest(`フィールドパスが不正です: ${path}`)
+    if (keys.some((k) => !k || FORBIDDEN_KEYS.has(k))) throw new BadRequest(`フィールドパスが不正です: ${path}`)
     let cur = out
     for (const k of keys.slice(0, -1)) {
       if (!isPlainObject(cur[k]) || isTs(cur[k])) cur[k] = {}

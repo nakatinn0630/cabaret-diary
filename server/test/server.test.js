@@ -293,3 +293,57 @@ test('HTTP: 外部サイトへの転送に使われない', async () => {
     }
   })
 })
+
+test('招待コードは一覧できない(店長以外)。1 件ずつの確認はできる', () => {
+  const { store } = setup()
+  const { id: sid } = store.addDoc('boss', 'stores', { createdBy: 'boss' })
+  store.setDoc('boss', `stores/${sid}/memberships/boss`, { uid: 'boss', storeId: sid, role: 'manager' }, false)
+  const code = `${sid}.RANDOM`
+  store.setDoc('boss', `stores/${sid}/invites/${code}`, { role: 'kurofuku' }, false)
+  assert.deepEqual(store.group('stranger', 'invites'), [])
+  assert.throws(() => store.list('stranger', `stores/${sid}/invites`), { code: 'permission-denied' })
+  assert.equal(store.getDoc('stranger', `stores/${sid}/invites/${code}`).exists, true)
+  assert.equal(store.list('boss', `stores/${sid}/invites`).length, 1)
+  assert.equal(store.group('boss', 'invites').length, 1)
+})
+
+test('既存メンバーは有効な招待で役割を変えられる(招待なしでは不可)', () => {
+  const { store } = setup()
+  const { id: sid } = store.addDoc('boss', 'stores', { createdBy: 'boss' })
+  store.setDoc('boss', `stores/${sid}/memberships/boss`, { uid: 'boss', storeId: sid, role: 'manager' }, false)
+  store.setDoc('boss', `stores/${sid}/invites/${sid}.C`, { role: 'cast' }, false)
+  store.setDoc('boss', `stores/${sid}/invites/${sid}.K`, { role: 'kurofuku' }, false)
+  const m = `stores/${sid}/memberships/x`
+  store.setDoc('x', m, { uid: 'x', storeId: sid, role: 'cast', inviteCode: `${sid}.C` }, false)
+  assert.throws(() => store.setDoc('x', m, { uid: 'x', storeId: sid, role: 'kurofuku', inviteCode: `${sid}.C` }, false), {
+    code: 'permission-denied',
+  })
+  store.setDoc('x', m, { uid: 'x', storeId: sid, role: 'kurofuku', inviteCode: `${sid}.K` }, false)
+  assert.equal(store.getDoc('x', m).data.role, 'kurofuku')
+})
+
+test('__proto__ などの名前は拒否する', () => {
+  const { store } = setup()
+  store.setDoc('u', 'users/u/c/x', { a: 1 }, false)
+  assert.throws(() => store.updateDoc('u', 'users/u/c/x', { '__proto__.role': 'x' }), { code: 'invalid-argument' })
+  assert.throws(() => store.setDoc('u', 'users/u/c/x', JSON.parse('{"__proto__":{"a":1}}'), true), { code: 'invalid-argument' })
+  assert.throws(() => store.setDoc('u', 'users/u/c/x', { constructor: 1 }, false), { code: 'invalid-argument' })
+})
+
+test('店は削除できず、メンバーが残る店 ID では作り直せない', () => {
+  const { store } = setup()
+  const { id: sid } = store.addDoc('boss', 'stores', { createdBy: 'boss' })
+  store.setDoc('boss', `stores/${sid}/memberships/boss`, { uid: 'boss', storeId: sid, role: 'manager' }, false)
+  assert.throws(() => store.deleteDoc('boss', `stores/${sid}`), { code: 'permission-denied' })
+  assert.throws(() => store.setDoc('evil', `stores/${sid}`, { createdBy: 'evil' }, false), { code: 'permission-denied' })
+})
+
+test('セッションの期限を延長したら Cookie も更新する', () => {
+  const { accounts, tick } = setup()
+  accounts.createSession('h', 'u', 30 * 86400000)
+  assert.deepEqual(accounts.session('h', 30 * 86400000), { uid: 'u', extended: false })
+  tick(20 * 86400000)
+  assert.deepEqual(accounts.session('h', 30 * 86400000), { uid: 'u', extended: true })
+  tick(31 * 86400000)
+  assert.equal(accounts.session('h', 30 * 86400000), null)
+})

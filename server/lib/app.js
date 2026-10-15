@@ -64,10 +64,14 @@ export function createApp(o) {
     return out
   }
 
-  function sessionUid(req) {
+  function sessionUid(req, res) {
     const sid = cookies(req)[SESSION_COOKIE]
     if (!sid || sid.length > 200) return null
-    return o.accounts.sessionUid(sha256(sid), SESSION_TTL_MS)
+    const s = o.accounts.session(sha256(sid), SESSION_TTL_MS)
+    if (!s) return null
+    // 使い続けている人がログアウトされないよう、延長したら Cookie の期限も延ばす
+    if (s.extended) setCookie(res, SESSION_COOKIE, sid, { maxAge: SESSION_TTL_MS })
+    return s.uid
   }
 
   function json(res, status, body) {
@@ -180,7 +184,7 @@ export function createApp(o) {
     }
 
     if (p === '/api/auth/me' && req.method === 'GET') {
-      const uid = sessionUid(req)
+      const uid = sessionUid(req, res)
       const u = uid ? o.accounts.getUser(uid) : null
       if (!u) return json(res, 200, { user: null })
       return json(res, 200, {
@@ -198,7 +202,7 @@ export function createApp(o) {
 
     if (p === '/api/db' && req.method === 'POST') {
       requireApiHeader(req)
-      const uid = sessionUid(req)
+      const uid = sessionUid(req, res)
       if (!uid) return json(res, 401, { error: 'ログインが必要です', code: 'unauthenticated' })
       const body = await readJson(req)
       if (!Array.isArray(body.ops) || body.ops.length === 0 || body.ops.length > MAX_OPS) {

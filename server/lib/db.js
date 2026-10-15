@@ -92,6 +92,7 @@ export function createStore(db, { now = () => Date.now() } = {}) {
     ),
     update: db.prepare('UPDATE docs SET data = ?, updated_at = ? WHERE path = ?'),
     del: db.prepare('DELETE FROM docs WHERE path = ?'),
+    hasChild: db.prepare('SELECT 1 FROM docs WHERE parent = ? LIMIT 1'),
   }
 
   const readRaw = (p) => {
@@ -99,7 +100,7 @@ export function createStore(db, { now = () => Date.now() } = {}) {
     return row ? JSON.parse(row.data) : null
   }
 
-  const ctxFor = (uid) => ({ uid, get: readRaw })
+  const ctxFor = (uid) => ({ uid, get: readRaw, hasChildren: (collPath) => st.hasChild.get(collPath) != null })
 
   function docSegs(p) {
     const segs = splitPath(p)
@@ -163,16 +164,16 @@ export function createStore(db, { now = () => Date.now() } = {}) {
     const rows = st.listParent.all(collPath).map((r) => ({ path: r.path, id: r.id, data: JSON.parse(r.data) }))
     const matched = applyQuery(rows, { where: q.where })
     if (matched.length === 0) {
-      if (!canRead(ctx, probe, null) && !canReadIfOwnFiltered(ctx, probe, q)) throw new Forbidden()
+      if (!canRead(ctx, probe, null, true) && !canReadIfOwnFiltered(ctx, probe, q)) throw new Forbidden()
     }
-    for (const r of matched) if (!canRead(ctx, splitPath(r.path), r.data)) throw new Forbidden()
+    for (const r of matched) if (!canRead(ctx, splitPath(r.path), r.data, true)) throw new Forbidden()
     return applyQuery(matched, { orderBy: q.orderBy, limit: q.limit }).map(toResult)
   }
 
   // 「castUid == 自分」で絞ったクエリは、該当 0 件でも許可する(自分宛のみ読める場所)
   function canReadIfOwnFiltered(ctx, probe, q) {
     const own = (q.where ?? []).find((f) => f.field === 'castUid' && f.op === '==' && f.value === ctx.uid)
-    return own ? canRead(ctx, probe, { castUid: ctx.uid }) : false
+    return own ? canRead(ctx, probe, { castUid: ctx.uid }, true) : false
   }
 
   /** collectionGroup。自分が読める文書だけを返す(本人の users 配下と、所属店舗の配下) */
@@ -184,7 +185,7 @@ export function createStore(db, { now = () => Date.now() } = {}) {
     const esc = uid.replace(/[\\%_]/g, (c) => '\\' + c)
     const rows = [...st.listGroupUser.all(collId, `users/${esc}/%`), ...st.listGroupStores.all(collId)]
       .map((r) => ({ path: r.path, id: r.id, data: JSON.parse(r.data) }))
-      .filter((r) => canRead(ctx, splitPath(r.path), r.data))
+      .filter((r) => canRead(ctx, splitPath(r.path), r.data, true))
     return applyQuery(rows, q).map(toResult)
   }
 
@@ -304,8 +305,8 @@ export function createAccounts(db, { now = () => Date.now() } = {}) {
       const t = now()
       st.sessIns.run(idHash, uid, t, t + ttlMs)
     },
-    /** 有効なセッションの uid。期限の半分を過ぎていたら延長する */
-    sessionUid(idHash, ttlMs) {
+    /** 有効なセッションの uid。期限の半分を過ぎていたら延長する(extended=true のとき Cookie も更新する) */
+    session(idHash, ttlMs) {
       const s = st.sessGet.get(idHash)
       if (!s) return null
       const t = now()
@@ -313,8 +314,12 @@ export function createAccounts(db, { now = () => Date.now() } = {}) {
         st.sessDel.run(idHash)
         return null
       }
-      if (s.expires_at - t < ttlMs / 2) st.sessExtend.run(t + ttlMs, idHash)
-      return s.uid
+      let extended = false
+      if (s.expires_at - t < ttlMs / 2) {
+        st.sessExtend.run(t + ttlMs, idHash)
+        extended = true
+      }
+      return { uid: s.uid, extended }
     },
     deleteSession: (idHash) => st.sessDel.run(idHash),
     gcSessions: () => st.sessGc.run(now()),
