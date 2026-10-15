@@ -153,7 +153,8 @@ else
   if secret_exists VITE_FIREBASE_API_KEY && secret_exists VITE_FIREBASE_APP_ID && secret_exists VITE_FIREBASE_PROJECT_ID; then
     ok "VITE_FIREBASE_* は登録済み"
   else
-    FB="npx -y firebase-tools@latest"
+    # 入っていれば Mac の firebase コマンドを使う(npx は毎回 npm から取得するため、通信の不調で失敗しやすい)
+    if command -v firebase >/dev/null 2>&1; then FB="firebase"; else FB="npx -y firebase-tools@latest"; fi
     $FB projects:list >/dev/null 2>&1 || $FB login
     $FB apps:sdkconfig web --project "$FIREBASE_PROJECT" --json > "$WORK/sdk.json" 2>/dev/null \
       || die "Firebase の構成値を取得できません(project: $FIREBASE_PROJECT)。FIREBASE_PROJECT=... で指定してください"
