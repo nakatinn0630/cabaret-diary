@@ -15,8 +15,8 @@ import {
   Timestamp,
   type DocumentData,
   type QueryDocumentSnapshot,
-} from 'firebase/firestore'
-import { auth, db } from './firebase'
+} from './fsdb'
+import { auth, db } from './backend'
 import { computeRisk } from './risk'
 import { demoActive, demoCustomers, demoVisitsByCustomer } from './demo'
 import { encFieldMaybe } from './crypto'

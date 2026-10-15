@@ -18,11 +18,17 @@ import {
 
 import { showsStore } from '../../lib/surface'
 import { clearConsultations } from '../../lib/consultations'
+import { AI_ENABLED } from '../../lib/features'
 
 const items: { icon: string; label: string; to: string }[] = [
   { icon: '📊', label: '売上レポート', to: '/sales' },
-  { icon: '🤵', label: 'AI黒服「クロ」に相談', to: '/consult' },
-  { icon: '🔮', label: '占い・相性診断', to: '/compat' },
+  // 生成AIの機能(蓋閉じ中は出さない)
+  ...(AI_ENABLED
+    ? [
+        { icon: '🤵', label: 'AI黒服「クロ」に相談', to: '/consult' },
+        { icon: '🔮', label: '占い・相性診断', to: '/compat' },
+      ]
+    : []),
   { icon: '🔔', label: 'お知らせ', to: '/notices' },
   // 店舗コンソールは店舗サーフェスが同居する場合のみ露出（完全分離時は非表示）。
   ...(showsStore() ? [{ icon: '🏢', label: '店舗コンソール', to: '/console' }] : []),
@@ -184,7 +190,7 @@ export default function Menu() {
             <>
               <p className={`text-[12px] leading-relaxed ${subTx}`}>
                 顧客の本名を、この端末だけで復号できる形で暗号化して保存します。パスフレーズはサーバに送られません。
-                （※AI黒服「クロ」への相談内容は、そもそもDBに保存せず端末内のみに保持します）
+                {AI_ENABLED && '（※AI黒服「クロ」への相談内容は、そもそもDBに保存せず端末内のみに保持します）'}
                 <span className="text-rose font-semibold">
                   忘れると復号できず、暗号化したデータは二度と読めません。
                 </span>
@@ -257,19 +263,21 @@ export default function Menu() {
           {encErr && <p className="text-[12px] text-rose font-semibold">{encErr}</p>}
         </Card>
 
-        {/* プライバシー：端末ローカルの相談履歴を消去 */}
-        <button
-          type="button"
-          onClick={() => {
-            if (confirm('この端末に保存されたAI黒服「クロ」への相談履歴をすべて消去します。よろしいですか？（元に戻せません）')) {
-              clearConsultations()
-              toast('相談履歴を消去しました')
-            }
-          }}
-          className="w-full min-h-[44px] rounded-2xl border border-night/15 dark:border-white/20 font-semibold text-[13px]"
-        >
-          🗑 クロへの相談履歴を端末から消す
-        </button>
+        {/* プライバシー：端末ローカルの相談履歴を消去(クロが蓋閉じ中は出さない) */}
+        {AI_ENABLED && (
+          <button
+            type="button"
+            onClick={() => {
+              if (confirm('この端末に保存されたAI黒服「クロ」への相談履歴をすべて消去します。よろしいですか？（元に戻せません）')) {
+                clearConsultations()
+                toast('相談履歴を消去しました')
+              }
+            }}
+            className="w-full min-h-[44px] rounded-2xl border border-night/15 dark:border-white/20 font-semibold text-[13px]"
+          >
+            🗑 クロへの相談履歴を端末から消す
+          </button>
+        )}
 
         <button
           type="button"

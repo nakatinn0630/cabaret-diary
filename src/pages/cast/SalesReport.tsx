@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Timestamp } from 'firebase/firestore'
+import { Timestamp } from '../../lib/fsdb'
 import { useCustomers } from '../../lib/customers'
 import {
   currentMonthKey,

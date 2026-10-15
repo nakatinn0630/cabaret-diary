@@ -1,5 +1,5 @@
-import { doc, serverTimestamp, updateDoc } from 'firebase/firestore'
-import { auth, db } from './firebase'
+import { doc, serverTimestamp, updateDoc } from './fsdb'
+import { auth, db } from './backend'
 import { demoActive } from './demo'
 import { currentUid, requireUid } from './uid'
 import type { CompatibilityRank, RelationshipType } from '../types'

@@ -1,11 +1,13 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import { subTx } from './ui'
+import { AI_ENABLED } from '../lib/features'
 
 const items = [
   { to: '/', label: 'ホーム', icon: '🏠', end: true },
   { to: '/customers', label: '顧客', icon: '👥', end: false },
   { to: '/schedule', label: '予定', icon: '📅', end: false },
-  { to: '/reply', label: '返信', icon: '💬', end: false },
+  // 返信アシストは生成AIの機能のため、蓋閉じ中は出さない
+  ...(AI_ENABLED ? [{ to: '/reply', label: '返信', icon: '💬', end: false }] : []),
   { to: '/menu', label: 'メニュー', icon: '☰', end: false },
 ]
 

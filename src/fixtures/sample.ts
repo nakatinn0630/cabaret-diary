@@ -1,4 +1,4 @@
-import { Timestamp } from 'firebase/firestore'
+import { Timestamp } from '../lib/fsdb'
 import type {
   Customer,
   Visit,

@@ -5,7 +5,7 @@
 - 🌐 **アプリ本体**（Googleログイン）: https://cabaret-diary.web.app
 - 🔎 **デモ**（ログイン不要・テストデータ入り）: https://cabaret-diary.web.app/demo
 
-> 和名「キャバ帳」＝英名「Cabaret Diary」。React 18 + Vite + Firebase の Web アプリ（PWA）。
+> 和名「キャバ帳」＝英名「Cabaret Diary」。React 18 + Vite の Web アプリ（PWA）。データとログインは VPS 上のキャバ帳サーバー（Node + SQLite）。
 
 ---
 
@@ -35,8 +35,8 @@
 
 ## 技術スタック
 - **フロント**: React 18 + Vite + TypeScript(strict) + Tailwind CSS + react-router-dom v6 + PWA（vite-plugin-pwa）
-- **バックエンド**: Firebase（Authentication / Firestore / Hosting）
-- **AI**: OpenAI互換API（既定は Groq / `llama-3.3-70b-versatile`）。`VITE_AI_*` で差し替え可能。
+- **バックエンド**: キャバ帳サーバー（`server/`。Node 22 + SQLite / better-sqlite3）。Google ログインをサーバーが直接処理し、本人/店舗の境界をサーバーで判定。共用 XServer VPS で稼働
+- **AI**: 現在は蓋閉じ中（`VITE_ENABLE_AI=true` で再開）。OpenAI互換API（既定は Groq / `llama-3.3-70b-versatile`）。`VITE_AI_*` で差し替え可能。
 - **カレンダー**: Google Calendar API 連携 ＋ iCalendar(.ics) 生成（端末カレンダー登録）
 
 ## サーフェス分離（キャスト / 店舗）
@@ -47,9 +47,9 @@
 
 ## セットアップ
 ```bash
-npm install
-cp .env.example .env.production   # Firebase の6値と VITE_AI_* を記入（.env* はコミットしない）
-npm run dev                       # http://localhost:5173
+npm install && (cd server && npm install)
+(cd server && DEV_LOGIN=1 node server.js)   # API: http://127.0.0.1:3010（DEV_LOGIN=1 はテスト用ログインを有効化）
+npm run dev                                 # 画面: http://localhost:5173（/api はサーバーへ中継）
 ```
 
 ## スクリプト
@@ -65,25 +65,22 @@ npm run dev                       # http://localhost:5173
 ## ディレクトリ
 ```
 src/
-  lib/            firebase, customers, schedules, sales, stores, ai, ics, crypto, surface …
-  contexts/       AuthContext(Google OAuth), CryptoContext(SEC-07)
+  lib/            backend(ログイン), fsdb(Firestore 互換の保存), customers, schedules, sales, stores, ai, features, ics, crypto …
+  contexts/       AuthContext(Google ログイン), CryptoContext(SEC-07)
   components/     UIキット・Onboarding・BottomNav・VisitForm など
   pages/
     cast/         キャストアプリ（顧客・予定・売上・占い・クロ・返信・お知らせ・メニュー）
     console/      店舗コンソール（メンバー管理・発信・売上確定・ランキング）
-firestore.rules   セキュリティルール（本人/店舗の境界を強制）
+server/           キャバ帳サーバー（API・Google ログイン・アクセス制限 lib/rules.js・SQLite）
+scripts/          setup-vps.sh（VPS の構築・切り替え）/ migrate/（Firebase からの移行）
 docs/             要件定義・DB設計・デプロイ手順・プロンプト
 ```
 
 ## デプロイ
-**共用 XServer VPS への配備**(静的配信・GitHub Actions 手動実行): [`docs/デプロイ_VPS.md`](docs/デプロイ_VPS.md)
+**共用 XServer VPS**（サーバー + SQLite・GitHub Actions）: [`docs/デプロイ_VPS.md`](docs/デプロイ_VPS.md)
+初回・切り替えは Mac で `bash scripts/setup-vps.sh`。以後は main への反映で自動配備。
 
-Firebase Hosting + Firestore ルール。手順は [`docs/デプロイ手順.md`](docs/デプロイ手順.md) / 分離配信は [`docs/デプロイ_Cabaret-Diary分離手順.md`](docs/デプロイ_Cabaret-Diary分離手順.md)。
-```bash
-npm run build
-firebase deploy --only hosting --project cabaret-diary
-firebase deploy --only firestore:rules --project cabaret-diary
-```
+Firebase（Hosting / Firestore / Authentication）は 2026-10 に使用をやめました（旧手順: `docs/デプロイ手順.md`）。
 
 ## ドキュメント
 - 業務要件定義: [`docs/キャバ帳_業務要件定義_v1.2.md`](docs/キャバ帳_業務要件定義_v1.2.md)

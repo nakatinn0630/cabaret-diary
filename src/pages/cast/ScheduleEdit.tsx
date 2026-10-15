@@ -1,6 +1,7 @@
+import { AI_ENABLED } from '../../lib/features'
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Timestamp } from 'firebase/firestore'
+import { Timestamp } from '../../lib/fsdb'
 import { useAuth } from '../../contexts/AuthContext'
 import { useCustomers } from '../../lib/customers'
 import {
@@ -276,12 +277,14 @@ export default function ScheduleEdit() {
             onClick={() => setPasteOpen(true)}
             className="w-full rounded-xl border border-dashed border-gold/50 bg-gold/5 px-4 py-2.5 text-[13px] font-semibold text-gold"
           >
-            ✨ LINEを貼り付けてAIが自動入力
+            {AI_ENABLED ? '✨ LINEを貼り付けてAIが自動入力' : '✨ LINEを貼り付けて自動入力'}
           </button>
         ) : (
           <div className="rounded-xl border border-gold/40 p-3 space-y-2">
             <p className={`text-[12px] font-semibold ${subTx}`}>
-              LINEの本文を貼り付けて「読み込む」→ AIが種別・日付・時刻・お客様を自動入力します（「明日」「来週火曜」等もOK）。空欄は手入力で調整できます。
+              {AI_ENABLED
+                ? 'LINEの本文を貼り付けて「読み込む」→ AIが種別・日付・時刻・お客様を自動入力します（「明日」「来週火曜」等もOK）。空欄は手入力で調整できます。'
+                : 'LINEの本文を貼り付けて「読み込む」→ 本文から種別・日付・時刻を読み取って入力します。読み取れなかった項目は手入力で調整してください。'}
             </p>
             <textarea
               value={pasteText}

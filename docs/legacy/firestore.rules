@@ -1,3 +1,5 @@
+// 【参考・旧】Firebase 時代の Firestore セキュリティルール。現在は server/lib/rules.js に移植して VPS のサーバーで判定している。
+// 移植時に締めた点(招待なしで店舗に参加できない・本人が役割を変えられない)は rules.js の先頭コメントを参照。
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {

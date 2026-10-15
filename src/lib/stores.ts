@@ -16,8 +16,8 @@ import {
   Timestamp,
   type DocumentData,
   type QueryDocumentSnapshot,
-} from 'firebase/firestore'
-import { auth, db } from './firebase'
+} from './fsdb'
+import { auth, db } from './backend'
 import {
   demoActive,
   demoMemberships,
@@ -154,6 +154,8 @@ export async function joinByCode(code: string, displayName: string): Promise<str
     storeId,
     role,
     displayName,
+    // サーバーが招待の有効性と役割を確認するために使う(招待なしでは参加できない)
+    inviteCode: code,
     joinedAt: serverTimestamp(),
     active: true,
   })

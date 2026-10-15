@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
+import { AI_ENABLED } from './lib/features'
 import { useAuth } from './contexts/AuthContext'
 import { enableDemo, disableDemo, demoActive } from './lib/demo'
 import { showsCast, showsStore } from './lib/surface'
@@ -93,10 +94,11 @@ export default function App() {
             <Route path="/schedule" element={<Schedule />} />
             <Route path="/schedule/new" element={<ScheduleEdit />} />
             <Route path="/schedule/:sid/edit" element={<ScheduleEdit />} />
-            <Route path="/reply" element={<ReplyAssist />} />
-            <Route path="/consult" element={<Consult />} />
+            {/* 生成AIの機能は蓋閉じ中(src/lib/features.ts)。直接開かれたらホームへ戻す */}
+            <Route path="/reply" element={AI_ENABLED ? <ReplyAssist /> : <Navigate to="/" replace />} />
+            <Route path="/consult" element={AI_ENABLED ? <Consult /> : <Navigate to="/" replace />} />
             <Route path="/sales" element={<SalesReport />} />
-            <Route path="/compat" element={<Compatibility />} />
+            <Route path="/compat" element={AI_ENABLED ? <Compatibility /> : <Navigate to="/" replace />} />
             <Route path="/notices" element={<Notices />} />
             <Route path="/menu" element={<Menu />} />
           </Route>

@@ -1,0 +1,15 @@
+{
+  "name": "kyabacho-server",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "キャバ帳の VPS 用サーバー(API + 静的配信)。SQLite に保存し、Google ログインを自前で処理する。",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.4.1"
+  }
+}

@@ -1,28 +1,31 @@
 #!/usr/bin/env bash
-# setup-vps.sh — キャバ帳を共用 XServer VPS に載せるまでを、Mac から1コマンドで自動実行する。
+# setup-vps.sh — キャバ帳を共用 XServer VPS で「サーバー + SQLite」構成で動かすまでを、Mac から1コマンドで実行する。
+# (Firebase は使わない。ログインもデータ保存も VPS 上のキャバ帳サーバーが行う)
 #
 #   bash scripts/setup-vps.sh                 # 対話あり(要所で y/N を聞く)
-#   bash scripts/setup-vps.sh --yes           # 確認なしで最後まで(DNS 未設定時の待機だけは行う)
-#   bash scripts/setup-vps.sh --dry-run       # 確認だけ。VPS・GitHub・Firebase は何も変更しない
-#   オプション: --no-auto-deploy(main への反映で自動配備にしない) / --skip-merge(PR をマージしない)
+#   bash scripts/setup-vps.sh --dry-run       # 確認だけ。VPS・GitHub は何も変更しない
+#   オプション: --skip-merge(PR をマージしない) / --skip-migrate(Firebase からのデータ移行をしない)
 #
 # やること(何度実行しても安全。済んでいる手順は飛ばす):
 #   0. 事前チェック(gh のログイン、VPS の root 鍵、必要なコマンド)
-#   1. DNS: kyabacho.ainowa.net の A レコードを確認(未設定なら Xserver のパネルを開いて反映を待つ)
-#   2. VPS: 配備キット(yell-staff-portal の feat/vps-static-spa。無ければ main)を送り、add-app.sh --spa を実行
-#   3. GitHub: 配備鍵・known_hosts・Firebase 構成値などを Secrets / Variables に登録(鍵は画面に出さない)
-#   4. Firebase: Authentication の承認済みドメインに kyabacho.ainowa.net を追加
-#   5. cabaret-diary の PR をマージ → 配備ワークフローを実行して完了を待つ → 公開 URL を確認
-#   6. AUTO_DEPLOY=true(以後 main への反映で自動配備)
+#   1. DNS: kyabacho.ainowa.net の A レコードを確認
+#   2. VPS: 静的配信(--spa)で作ってあれば、Node のサーバー構成に切り替える(add-app.sh。HTTPS 証明書は再利用)
+#   3. VPS: Google ログインの設定(GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / APP_ORIGIN)を .env に書く
+#   4. GitHub: 配備に使う Secrets / Variables を確認・登録
+#   5. PR をマージ → 配備の完了を待つ → 公開 URL と /api/health を確認
+#   6. Firebase からのデータ移行(Firestore の全データ + ログインユーザー。uid を引き継ぐ)
 #
-# 社内ポータルの PR(配備キット)はマージしない: マージするとポータル本番の再配備が走るため。
-# 秘密情報(秘密鍵・API キー)は画面・ログ・ファイルに残さず、パイプで gh に直接渡す。
+# 切り替えの順番が大事: 2 → 5。VPS を先に Node 構成にしないと、新しい配備物を受け取れない
+# (配備ワークフローは VPS が Node 構成でなければ配備を中止するので、順番を間違えても本番は壊れない)。
+# 2 から 5 の間(数分)は、サイトにメンテナンス表示が出る。
+#
+# 秘密情報(Google のクライアントシークレット、配備鍵、移行データ)は画面・ログ・Git に残さない。
 #
 # 環境変数で上書き可:
 #   APP_NAME(kyabacho) DOMAIN(kyabacho.ainowa.net) PORT(3010) EMAIL(gh のアカウントのメール)
-#   VPS_IP(153.115.47.117) ROOT_KEY(~/.ssh/vps_portal) FIREBASE_PROJECT(cabaret-diary)
-#   APP_REPO(nakatinn0630/cabaret-diary) APP_PR(4) KIT_REPO(nakatinn0630/yell-staff-portal) KIT_REF(feat/vps-static-spa)
-#   GROQ_API_KEY(指定すると VITE_AI_API_KEY に登録。未指定なら対話で聞く/--yes では飛ばす)
+#   VPS_IP(153.115.47.117) ROOT_KEY(~/.ssh/vps_portal) GCP_PROJECT(cabaret-diary)
+#   APP_REPO(nakatinn0630/cabaret-diary) APP_PR(未指定なら feat/vps-db の PR) KIT_REPO(nakatinn0630/yell-staff-portal)
+#   KIT_REF(feat/vps-static-spa) SA_KEY(Firebase のサービスアカウント鍵 JSON のパス)
 set -euo pipefail
 
 APP_NAME="${APP_NAME:-kyabacho}"
@@ -30,20 +33,24 @@ DOMAIN="${DOMAIN:-kyabacho.ainowa.net}"
 PORT="${PORT:-3010}"
 VPS_IP="${VPS_IP:-153.115.47.117}"
 ROOT_KEY="${ROOT_KEY:-$HOME/.ssh/vps_portal}"
-FIREBASE_PROJECT="${FIREBASE_PROJECT:-cabaret-diary}"
+GCP_PROJECT="${GCP_PROJECT:-cabaret-diary}"
 APP_REPO="${APP_REPO:-nakatinn0630/cabaret-diary}"
-APP_PR="${APP_PR:-4}"
+APP_BRANCH="${APP_BRANCH:-feat/vps-db}"
+APP_PR="${APP_PR:-}"
 KIT_REPO="${KIT_REPO:-nakatinn0630/yell-staff-portal}"
 KIT_REF="${KIT_REF:-feat/vps-static-spa}"
 EMAIL="${EMAIL:-}"
-YES=0; DRY=0; AUTO_DEPLOY=1; DO_MERGE=1
+SA_KEY="${SA_KEY:-}"
+DRY=0; DO_MERGE=1; DO_MIGRATE=1
+APP_ROOT="/srv/apps/$APP_NAME"
+UNIT="app-$APP_NAME"
+SITE="/etc/nginx/sites-available/app-$APP_NAME"
 
 for a in "$@"; do
   case "$a" in
-    --yes|-y) YES=1 ;;
     --dry-run) DRY=1 ;;
-    --no-auto-deploy) AUTO_DEPLOY=0 ;;
     --skip-merge) DO_MERGE=0 ;;
+    --skip-migrate) DO_MIGRATE=0 ;;
     -h|--help) sed -n '2,30p' "$0"; exit 0 ;;
     *) echo "不明なオプション: $a" >&2; exit 2 ;;
   esac
@@ -52,9 +59,9 @@ done
 C_OK=$'\033[32m'; C_NG=$'\033[31m'; C_H=$'\033[1;36m'; C_0=$'\033[0m'
 step() { printf '\n%s=== %s ===%s\n' "$C_H" "$*" "$C_0"; }
 ok()   { printf '%s✓%s %s\n' "$C_OK" "$C_0" "$*"; }
+warn() { printf '  ! %s\n' "$*"; }
 die()  { printf '%s✗ %s%s\n' "$C_NG" "$*" "$C_0" >&2; exit 1; }
 confirm() {
-  [ "$YES" = 1 ] && return 0
   printf '%s [y/N] ' "$1"; read -r ans </dev/tty || ans=""
   case "$ans" in y|Y|yes|YES) return 0 ;; *) return 1 ;; esac
 }
@@ -62,20 +69,21 @@ SSH_ROOT() { ssh -i "$ROOT_KEY" -o BatchMode=yes -o ConnectTimeout=10 "root@$VPS
 secret_exists() { gh secret list -R "$APP_REPO" --json name -q '.[].name' 2>/dev/null | grep -qx "$1"; }
 
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/kyabacho-setup.XXXXXX")"
+chmod 700 "$WORK"
 cleanup() { rm -rf "$WORK"; }
 trap cleanup EXIT
 
-echo "キャバ帳 VPS セットアップ: $APP_NAME → https://$DOMAIN (VPS $VPS_IP)"
+echo "キャバ帳 VPS セットアップ(サーバー + SQLite): $APP_NAME → https://$DOMAIN (VPS $VPS_IP)"
 [ "$DRY" = 1 ] && echo "(--dry-run: 確認だけ。何も変更しません)"
 
 # ---------- 0. 事前チェック ----------
 step "0/6 事前チェック"
-for c in gh ssh rsync dig curl git node npx; do
-  command -v "$c" >/dev/null 2>&1 || die "$c がありません(Homebrew なら: brew install ${c/npx/node})"
+for c in gh ssh rsync dig curl git node npm; do
+  command -v "$c" >/dev/null 2>&1 || die "$c がありません(Homebrew なら: brew install ${c/npm/node})"
 done
 gh auth status >/dev/null 2>&1 || die "gh にログインしていません: gh auth login"
 ok "gh: ログイン済み"
-[ -f "$ROOT_KEY" ] || die "VPS の root 鍵がありません: $ROOT_KEY(社内ポータル構築に使った Mac からこのファイルを安全にコピーしてください)"
+[ -f "$ROOT_KEY" ] || die "VPS の root 鍵がありません: $ROOT_KEY"
 SSH_ROOT true || die "VPS に root で SSH できません($ROOT_KEY)。鍵・ネットワークを確認してください"
 ok "VPS: root で接続できる"
 if [ -z "$EMAIL" ]; then
@@ -88,183 +96,215 @@ if [ -z "$EMAIL" ]; then
 fi
 printf '%s' "$EMAIL" | grep -Eq '^[^[:space:]@]+@[^[:space:]@]+$' || die "証明書用のメールアドレスが分かりません。EMAIL=you@example.com bash $0 で指定してください"
 ok "証明書の連絡先: $EMAIL"
+if [ -z "$APP_PR" ]; then
+  APP_PR="$(gh api "repos/$APP_REPO/pulls?head=${APP_REPO%%/*}:$APP_BRANCH&state=all" -q '.[0].number' 2>/dev/null || true)"
+fi
+[ -n "$APP_PR" ] || die "ブランチ $APP_BRANCH の PR が見つかりません。APP_PR=番号 で指定してください"
+ok "対象の PR: #$APP_PR($APP_BRANCH)"
 
 # ---------- 1. DNS ----------
 step "1/6 DNS: $DOMAIN → $VPS_IP"
-dns_ok() { [ "$(dig +short @8.8.8.8 "$DOMAIN" A | tail -n1)" = "$VPS_IP" ]; }
-if dns_ok; then
-  ok "A レコード反映済み"
-elif [ "$DRY" = 1 ]; then
-  echo "未設定です(--dry-run のため待ちません)"
-else
-  echo "A レコードがまだありません。Xserver レンタルサーバーのサーバーパネル →「DNSレコード設定」で追加してください:"
-  echo "    ホスト名: ${DOMAIN%%.ainowa.net}   種別: A   内容: $VPS_IP"
-  echo "(VPS パネルの DNS ではありません)"
-  echo "反映を待っています(30秒ごとに確認・最大60分。Ctrl+C で中断し、あとで再実行しても続きから進みます)"
-  i=0
-  until dns_ok; do
-    i=$((i + 1)); [ "$i" -le 120 ] || die "60分待っても反映されませんでした。設定を確認して再実行してください"
-    sleep 30; printf '.'
-  done
-  echo; ok "A レコード反映済み"
-fi
+[ "$(dig +short @8.8.8.8 "$DOMAIN" A | tail -n1)" = "$VPS_IP" ] || die "A レコードが $VPS_IP を向いていません(Xserver のサーバーパネル →「DNSレコード設定」)"
+ok "A レコード反映済み"
 
-# ---------- 2. VPS ----------
-step "2/6 VPS: add-app.sh --spa"
+# ---------- 2. VPS: Node 構成へ ----------
+step "2/6 VPS: Node のサーバー構成(add-app.sh)"
 gh repo clone "$KIT_REPO" "$WORK/kit" -- -q --depth 1 --branch "$KIT_REF" 2>/dev/null \
   || { echo "($KIT_REF が無いため main を使います)"; gh repo clone "$KIT_REPO" "$WORK/kit" -- -q --depth 1; }
-grep -q -- '--no-print-key' "$WORK/kit/deploy/vps/add-app.sh" || die "キットに --spa / --no-print-key がありません($KIT_REPO の $KIT_REF)"
-rsync -az -e "ssh -i $ROOT_KEY -o BatchMode=yes" "$WORK/kit/deploy/vps/" "root@$VPS_IP:/root/vps-setup/"
-ok "キットを VPS の /root/vps-setup/ に送信"
-ADD="bash /root/vps-setup/add-app.sh $APP_NAME $DOMAIN $PORT $EMAIL --spa --no-print-key"
-SSH_ROOT "$ADD --dry-run" > "$WORK/dry.log" 2>&1 || { cat "$WORK/dry.log"; die "add-app.sh --dry-run が失敗しました"; }
-ok "add-app.sh --dry-run: 問題なし"
+grep -q -- '--no-print-key' "$WORK/kit/deploy/vps/add-app.sh" || die "キットに --no-print-key がありません($KIT_REPO の $KIT_REF)"
+mode="$(SSH_ROOT "sed -n 's/^# add-app: mode=//p' $SITE 2>/dev/null | head -n1" || true)"
+echo "現在の構成: ${mode:-未作成}"
+ADD="bash /root/vps-setup/add-app.sh $APP_NAME $DOMAIN $PORT $EMAIL --no-print-key"
 if [ "$DRY" = 1 ]; then
-  sed -n '1,40p' "$WORK/dry.log"
-else
+  rsync -az -e "ssh -i $ROOT_KEY -o BatchMode=yes" "$WORK/kit/deploy/vps/" "root@$VPS_IP:/root/vps-setup-dryrun/"
+  echo "(--dry-run) 切り替え後の add-app.sh(node)の予定:"
+  SSH_ROOT "bash /root/vps-setup-dryrun/add-app.sh $APP_NAME $DOMAIN $PORT $EMAIL --no-print-key --dry-run 2>&1 | grep -E '^(===|\\[dry-run\\] (ファイル|ディレクトリ))' | head -30; rm -rf /root/vps-setup-dryrun" || true
+elif [ "$mode" = "node" ]; then
+  rsync -az -e "ssh -i $ROOT_KEY -o BatchMode=yes" "$WORK/kit/deploy/vps/" "root@$VPS_IP:/root/vps-setup/"
   SSH_ROOT "$ADD" > "$WORK/add.log" 2>&1 || { tail -40 "$WORK/add.log"; die "add-app.sh が失敗しました"; }
-  grep -q 'BEGIN OPENSSH' "$WORK/add.log" && die "想定外: 秘密鍵がログに出力されました($WORK は終了時に削除します)。中断します"
+  ok "Node 構成は作成済み(設定を確認しました)"
+else
+  if [ -n "$mode" ]; then
+    echo "静的配信($mode)から Node のサーバー構成に切り替えます。配備が終わるまで(数分)メンテナンス表示になります。"
+    confirm "切り替えてよいですか?" || die "中止しました"
+  fi
+  rsync -az -e "ssh -i $ROOT_KEY -o BatchMode=yes" "$WORK/kit/deploy/vps/" "root@$VPS_IP:/root/vps-setup/"
+  if [ -n "$mode" ]; then
+    # 静的構成の nginx 設定を退避(add-app.sh はモードの違う既存設定を上書きしないため)。証明書と配備鍵はそのまま使う
+    SSH_ROOT "set -e; b=/root/vps-setup/backup-\$(date +%Y%m%d-%H%M%S); mkdir -p \$b; cp -a $SITE \$b/; rm -f /etc/nginx/sites-enabled/app-$APP_NAME $SITE; echo \"退避: \$b\""
+  fi
+  SSH_ROOT "$ADD" > "$WORK/add.log" 2>&1 || { tail -40 "$WORK/add.log"; die "add-app.sh が失敗しました(退避した設定は /root/vps-setup/backup-* にあります)"; }
+  grep -q 'BEGIN OPENSSH' "$WORK/add.log" && die "想定外: 秘密鍵がログに出力されました。中断します"
   grep -E '^(=== |証明書|HTTPS|配備鍵)' "$WORK/add.log" | sed 's/^/    /' || true
-  ok "add-app.sh 完了"
+  ok "add-app.sh(node)完了"
+fi
+if [ "$DRY" = 0 ]; then
+  # 証明書が取得済みだと add-app.sh は certbot を呼ばないため、作り直した nginx 設定に HTTPS を入れ直す
+  if ! SSH_ROOT "grep -q 'listen 443' $SITE"; then
+    SSH_ROOT "certbot --nginx -d $DOMAIN --non-interactive --agree-tos -m $EMAIL --redirect --reinstall" > "$WORK/cert.log" 2>&1 \
+      || { tail -20 "$WORK/cert.log"; die "HTTPS の設定に失敗しました"; }
+    ok "HTTPS を設定(既存の証明書を再利用)"
+  else
+    ok "HTTPS 設定済み"
+  fi
 fi
 
-# ---------- 3. GitHub Secrets / Variables ----------
-step "3/6 GitHub: $APP_REPO の Secrets / Variables"
-KEY_PATH="/root/app-keys/$APP_NAME/deploy_ed25519"
+# ---------- 3. Google ログインの設定 ----------
+step "3/6 VPS: Google ログインの設定($APP_ROOT/.env)"
+has_env() { SSH_ROOT "grep -Eq '^$1=.+' $APP_ROOT/.env" 2>/dev/null; }
 if [ "$DRY" = 1 ]; then
-  echo "(--dry-run) 登録予定: VPS_HOST VPS_PORT VPS_USER VPS_SSH_KEY VPS_KNOWN_HOSTS VITE_FIREBASE_*(6) / APP_NAME APP_URL"
+  for k in APP_ORIGIN GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET; do has_env "$k" && echo "  $k: 設定済み" || echo "  $k: 未設定(本番で入力を求めます)"; done
 else
-  # 配備鍵: add-app.sh が今回発行していればそれを、GitHub に無ければ再発行して登録
-  if ! SSH_ROOT "test -f $KEY_PATH"; then
-    if secret_exists VPS_SSH_KEY; then
-      echo "VPS_SSH_KEY は登録済み(VPS 側の鍵も登録済み)のため再発行しません"
-    else
-      SSH_ROOT "bash /root/vps-setup/add-app.sh rotate-key $APP_NAME --no-print-key" > "$WORK/rot.log" 2>&1 || { tail -20 "$WORK/rot.log"; die "配備鍵の再発行に失敗"; }
-    fi
+  ENV_LINES=""
+  has_env APP_ORIGIN || ENV_LINES+="APP_ORIGIN=https://$DOMAIN"$'\n'
+  if has_env GOOGLE_CLIENT_ID && has_env GOOGLE_CLIENT_SECRET; then
+    ok "GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET は設定済み"
+  else
+    URL="https://console.cloud.google.com/apis/credentials?project=$GCP_PROJECT"
+    cat <<EOT
+Google ログイン用の OAuth クライアントが必要です。ブラウザで次を開きます:
+  $URL
+  1. 「OAuth 2.0 クライアント ID」の Web クライアント(Firebase が作った "Web client (auto created by Google Service)" で可)を開く
+  2. 「承認済みの JavaScript 生成元」に   https://$DOMAIN   を追加
+  3. 「承認済みのリダイレクト URI」に     https://$DOMAIN/api/auth/google/callback   を追加して保存
+  4. 画面右側の「クライアント ID」と「クライアント シークレット」を下に貼り付ける
+EOT
+    command -v open >/dev/null 2>&1 && open "$URL" || true
+    printf 'クライアント ID: '; read -r GCID </dev/tty
+    printf 'クライアント シークレット(入力は表示されません): '; read -rs GCSEC </dev/tty; echo
+    printf '%s' "$GCID" | grep -Eq '^[0-9]+-[a-z0-9]+\.apps\.googleusercontent\.com$' || die "クライアント ID の形式が違います(…apps.googleusercontent.com)"
+    printf '%s' "$GCSEC" | grep -Eq '^[A-Za-z0-9_-]{10,100}$' || die "クライアント シークレットの形式が違います"
+    ENV_LINES+="GOOGLE_CLIENT_ID=$GCID"$'\n'"GOOGLE_CLIENT_SECRET=$GCSEC"$'\n'
+    unset GCSEC
+  fi
+  if [ -n "$ENV_LINES" ]; then
+    # 値はコマンドライン引数ではなく標準入力で渡す(ps やログに出さない)。既存の同名行は置き換える
+    printf '%s' "$ENV_LINES" | SSH_ROOT "set -e; f=$APP_ROOT/.env; t=\$(mktemp); cp -p \$f \$t
+      while IFS= read -r line; do [ -n \"\$line\" ] || continue; k=\${line%%=*}; grep -v \"^\$k=\" \$t > \$t.n || true; mv \$t.n \$t; printf '%s\n' \"\$line\" >> \$t; done
+      chown root:$UNIT \$t; chmod 640 \$t; mv \$t \$f
+      systemctl is-active --quiet $UNIT && systemctl restart $UNIT || true"
+    unset ENV_LINES
+    ok "設定を書き込みました(値は表示しません)"
+  fi
+fi
+
+# ---------- 4. GitHub ----------
+step "4/6 GitHub: $APP_REPO の Secrets / Variables"
+if [ "$DRY" = 1 ]; then
+  for s in VPS_HOST VPS_PORT VPS_USER VPS_SSH_KEY; do secret_exists "$s" && echo "  $s: 登録済み" || echo "  $s: 未登録"; done
+else
+  KEY_PATH="/root/app-keys/$APP_NAME/deploy_ed25519"
+  if ! SSH_ROOT "test -f $KEY_PATH" && ! secret_exists VPS_SSH_KEY; then
+    SSH_ROOT "bash /root/vps-setup/add-app.sh rotate-key $APP_NAME --no-print-key" > "$WORK/rot.log" 2>&1 || { tail -20 "$WORK/rot.log"; die "配備鍵の発行に失敗"; }
   fi
   if SSH_ROOT "test -f $KEY_PATH"; then
     SSH_ROOT "cat $KEY_PATH" | gh secret set VPS_SSH_KEY -R "$APP_REPO" >/dev/null
     SSH_ROOT "rm -f $KEY_PATH"
     ok "VPS_SSH_KEY を登録し、VPS 上の秘密鍵を削除"
+  else
+    ok "VPS_SSH_KEY は登録済み"
   fi
   printf '%s' "$VPS_IP" | gh secret set VPS_HOST -R "$APP_REPO" >/dev/null
   printf '22' | gh secret set VPS_PORT -R "$APP_REPO" >/dev/null
   printf 'deploy' | gh secret set VPS_USER -R "$APP_REPO" >/dev/null
   KH="$(ssh-keyscan -T 10 -t ed25519 "$VPS_IP" 2>/dev/null | grep -v '^#' || true)"
   [ -n "$KH" ] && printf '%s\n' "$KH" | gh secret set VPS_KNOWN_HOSTS -R "$APP_REPO" >/dev/null
-  ok "VPS_HOST / VPS_PORT / VPS_USER / VPS_KNOWN_HOSTS"
-
-  # Firebase の Web アプリ構成値(firebase-tools にログインしていない場合はブラウザでログインを求める)
-  if secret_exists VITE_FIREBASE_API_KEY && secret_exists VITE_FIREBASE_APP_ID && secret_exists VITE_FIREBASE_PROJECT_ID; then
-    ok "VITE_FIREBASE_* は登録済み"
-  else
-    # 入っていれば Mac の firebase コマンドを使う(npx は毎回 npm から取得するため、通信の不調で失敗しやすい)
-    if command -v firebase >/dev/null 2>&1; then FB="firebase"; else FB="npx -y firebase-tools@latest"; fi
-    $FB projects:list >/dev/null 2>&1 || $FB login
-    $FB apps:sdkconfig web --project "$FIREBASE_PROJECT" --json > "$WORK/sdk.json" 2>/dev/null \
-      || die "Firebase の構成値を取得できません(project: $FIREBASE_PROJECT)。FIREBASE_PROJECT=... で指定してください"
-    node -e '
-      const fs=require("fs"); const j=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));
-      let c=(j.result&&j.result.sdkConfig)||null;
-      if(!c&&j.result&&j.result.fileContents){ const m=j.result.fileContents.match(/\{[\s\S]*\}/); if(m){ try{c=JSON.parse(m[0])}catch(e){ c=Function("return "+m[0])() } } }
-      if(!c||!c.apiKey){ process.exit(3) }
-      const map={apiKey:"API_KEY",authDomain:"AUTH_DOMAIN",projectId:"PROJECT_ID",storageBucket:"STORAGE_BUCKET",messagingSenderId:"MESSAGING_SENDER_ID",appId:"APP_ID"};
-      for(const k in map){ if(c[k]) fs.writeFileSync(process.argv[2]+"/fb_"+map[k], String(c[k])) }
-    ' "$WORK/sdk.json" "$WORK" || die "Firebase の構成値を読み取れませんでした"
-    for k in API_KEY AUTH_DOMAIN PROJECT_ID STORAGE_BUCKET MESSAGING_SENDER_ID APP_ID; do
-      [ -f "$WORK/fb_$k" ] && gh secret set "VITE_FIREBASE_$k" -R "$APP_REPO" < "$WORK/fb_$k" >/dev/null
-    done
-    rm -f "$WORK"/fb_* "$WORK/sdk.json"
-    ok "VITE_FIREBASE_*(Firebase project: $FIREBASE_PROJECT)"
-  fi
-
-  # AI キー(任意)
-  if secret_exists VITE_AI_API_KEY; then
-    ok "VITE_AI_API_KEY は登録済み"
-  elif [ -n "${GROQ_API_KEY:-}" ]; then
-    printf '%s' "$GROQ_API_KEY" | gh secret set VITE_AI_API_KEY -R "$APP_REPO" >/dev/null; ok "VITE_AI_API_KEY"
-  elif [ "$YES" = 0 ]; then
-    printf 'AI 用の API キー(Groq の gsk_... 等。空 Enter で飛ばす。入力は表示されません): '
-    read -rs AIK </dev/tty || AIK=""; echo
-    if [ -n "$AIK" ]; then printf '%s' "$AIK" | gh secret set VITE_AI_API_KEY -R "$APP_REPO" >/dev/null; ok "VITE_AI_API_KEY"; fi
-    unset AIK
-  else
-    echo "VITE_AI_API_KEY は未登録(AI 機能は端末内の簡易生成になります)"
-  fi
-
   gh variable set APP_NAME -R "$APP_REPO" --body "$APP_NAME" >/dev/null
   gh variable set APP_URL -R "$APP_REPO" --body "https://$DOMAIN" >/dev/null
-  ok "Variables: APP_NAME / APP_URL"
-fi
-
-# ---------- 4. Firebase 承認済みドメイン ----------
-step "4/6 Firebase: 承認済みドメインに $DOMAIN"
-add_domain_api() {
-  command -v gcloud >/dev/null 2>&1 || return 1
-  local tok cur new
-  tok="$(gcloud auth print-access-token 2>/dev/null)" || return 1
-  cur="$(curl -fsS -H "Authorization: Bearer $tok" -H "x-goog-user-project: $FIREBASE_PROJECT" \
-    "https://identitytoolkit.googleapis.com/admin/v2/projects/$FIREBASE_PROJECT/config")" || return 1
-  if printf '%s' "$cur" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const d=JSON.parse(s).authorizedDomains||[];process.exit(d.includes(process.argv[1])?0:1)})' "$DOMAIN"; then
-    ok "登録済み"; return 0
+  ok "VPS_HOST / VPS_PORT / VPS_USER / VPS_KNOWN_HOSTS / APP_NAME / APP_URL"
+  if secret_exists VITE_FIREBASE_API_KEY; then
+    echo "  (VITE_FIREBASE_* と VITE_AI_API_KEY の Secrets はもう使いません。不要なら GitHub の Settings から削除できます)"
   fi
-  [ "$DRY" = 1 ] && { echo "(--dry-run) 追加予定"; return 0; }
-  new="$(printf '%s' "$cur" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const d=JSON.parse(s).authorizedDomains||[];d.push(process.argv[1]);process.stdout.write(JSON.stringify({authorizedDomains:d}))})' "$DOMAIN")"
-  curl -fsS -X PATCH -H "Authorization: Bearer $tok" -H "x-goog-user-project: $FIREBASE_PROJECT" -H 'Content-Type: application/json' \
-    -d "$new" "https://identitytoolkit.googleapis.com/admin/v2/projects/$FIREBASE_PROJECT/config?updateMask=authorizedDomains" >/dev/null || return 1
-  ok "追加しました"
-}
-if ! add_domain_api; then
-  URL="https://console.firebase.google.com/project/$FIREBASE_PROJECT/authentication/settings"
-  echo "自動で追加できませんでした(gcloud が無い、または未ログイン: gcloud auth login)。"
-  echo "ブラウザで「承認済みドメイン」に $DOMAIN を追加してください: $URL"
-  command -v open >/dev/null 2>&1 && open "$URL" || true
-  if [ "$DRY" = 0 ] && [ "$YES" = 0 ]; then printf '追加したら Enter: '; read -r _ </dev/tty || true; fi
 fi
 
 # ---------- 5. マージと配備 ----------
-step "5/6 配備: PR #$APP_PR をマージ → deploy-vps を実行"
+step "5/6 配備: PR #$APP_PR をマージ → deploy-vps の完了を待つ"
 if [ "$DRY" = 1 ]; then
-  echo "(--dry-run) PR #$APP_PR のマージと deploy-vps の実行は行いません"
+  echo "(--dry-run) マージと配備は行いません"
 else
+  before="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   state="$(gh api "repos/$APP_REPO/pulls/$APP_PR" -q '.merged')"
   if [ "$state" = "true" ]; then
-    ok "PR #$APP_PR はマージ済み"
-  elif [ "$DO_MERGE" = 1 ] && confirm "PR #$APP_PR($APP_REPO)を main にマージします。よいですか?"; then
+    ok "PR #$APP_PR はマージ済み。最新の main を配備します"
+    gh workflow run deploy-vps.yml -R "$APP_REPO" --ref main
+  elif [ "$DO_MERGE" = 1 ] && confirm "PR #$APP_PR($APP_REPO)を main にマージします(=本番配備)。よいですか?"; then
     gh api -X PUT "repos/$APP_REPO/pulls/$APP_PR/merge" -f merge_method=merge >/dev/null
     ok "PR #$APP_PR をマージ"
+    # AUTO_DEPLOY=true なら main への反映で配備が始まる。始まらなければ手動で起動する
+    sleep 20
+    if [ -z "$(gh run list -R "$APP_REPO" --workflow deploy-vps.yml --limit 5 --json createdAt -q "[.[]|select(.createdAt>=\"$before\")][0].createdAt" 2>/dev/null)" ]; then
+      gh workflow run deploy-vps.yml -R "$APP_REPO" --ref main
+    fi
   else
-    die "PR #$APP_PR が未マージのため配備できません(--skip-merge 指定時は手動でマージ後に再実行)"
+    die "PR #$APP_PR が未マージのため配備できません(マージ後に再実行してください)"
   fi
-  sleep 5
-  before="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  gh workflow run deploy-vps.yml -R "$APP_REPO" --ref main
-  echo "実行を開始しました。完了を待っています…"
+  echo "配備の完了を待っています…"
   rid=""
-  for _ in $(seq 1 20); do
+  for _ in $(seq 1 30); do
+    rid="$(gh run list -R "$APP_REPO" --workflow deploy-vps.yml --limit 5 --json databaseId,createdAt \
+      -q "[.[]|select(.createdAt>=\"$before\")]|last|.databaseId" 2>/dev/null || true)"
+    [ -n "$rid" ] && [ "$rid" != null ] && break
     sleep 5
-    rid="$(gh run list -R "$APP_REPO" --workflow deploy-vps.yml --event workflow_dispatch --limit 5 \
-      --json databaseId,createdAt -q "[.[]|select(.createdAt>=\"$before\")][0].databaseId" 2>/dev/null || true)"
-    [ -n "$rid" ] && break
   done
-  [ -n "$rid" ] || die "実行が見つかりません。GitHub の Actions 画面を確認してください"
-  gh run watch "$rid" -R "$APP_REPO" --exit-status || die "配備に失敗しました: gh run view $rid -R $APP_REPO --log-failed"
+  [ -n "$rid" ] && [ "$rid" != null ] || die "配備の実行が見つかりません。GitHub の Actions 画面を確認してください"
+  gh run watch "$rid" -R "$APP_REPO" --exit-status >/dev/null || die "配備に失敗しました: gh run view $rid -R $APP_REPO --log-failed"
+  # 同時に複数走った場合に備え、最後の実行も待つ
+  last="$(gh run list -R "$APP_REPO" --workflow deploy-vps.yml --limit 1 --json databaseId -q '.[0].databaseId')"
+  [ "$last" != "$rid" ] && { gh run watch "$last" -R "$APP_REPO" --exit-status >/dev/null || die "配備に失敗しました: gh run view $last -R $APP_REPO --log-failed"; }
   ok "配備完了"
-  for p in / /demo /login; do
+  code="$(curl -s -o /dev/null -w '%{http_code}' -m 20 "https://$DOMAIN/api/health")"
+  [ "$code" = 200 ] && ok "https://$DOMAIN/api/health → 200(サーバー稼働中)" || die "https://$DOMAIN/api/health → $code(journalctl -u $UNIT で確認)"
+  for p in / /login /demo; do
     code="$(curl -s -o /dev/null -w '%{http_code}' -m 20 "https://$DOMAIN$p")"
-    [ "$code" = 200 ] && ok "https://$DOMAIN$p → $code" || echo "  ! https://$DOMAIN$p → $code"
+    [ "$code" = 200 ] && ok "https://$DOMAIN$p → $code" || warn "https://$DOMAIN$p → $code"
   done
+  loc="$(curl -s -o /dev/null -w '%{redirect_url}' -m 20 "https://$DOMAIN/api/auth/google")"
+  case "$loc" in https://accounts.google.com/*) ok "Google ログインの入口 → accounts.google.com" ;; *) warn "Google ログインの入口が想定外です: ${loc:-なし}" ;; esac
 fi
 
-# ---------- 6. 自動配備 ----------
-step "6/6 以後の自動配備"
-if [ "$AUTO_DEPLOY" = 1 ]; then
-  if [ "$DRY" = 1 ]; then echo "(--dry-run) AUTO_DEPLOY=true を設定予定"
-  else gh variable set AUTO_DEPLOY -R "$APP_REPO" --body true >/dev/null; ok "AUTO_DEPLOY=true(main への反映で自動配備。docs/・*.md のみの変更は除く)"; fi
+# ---------- 6. データ移行 ----------
+step "6/6 Firebase からのデータ移行"
+db_status() { SSH_ROOT "sudo -u $UNIT env DATA_DIR=$APP_ROOT/data node $APP_ROOT/app/status.js" 2>/dev/null || echo '{}'; }
+if [ "$DRY" = 1 ] || [ "$DO_MIGRATE" = 0 ]; then
+  echo "(スキップ)"
+elif db_status | grep -q '"imported":{'; then
+  ok "移行済み(もう一度行う場合は scripts/migrate/README.md の手順で --replace)"
+elif confirm "Firebase のデータ(Firestore 全体 + ログインユーザー)を VPS に移しますか?"; then
+  if [ -z "$SA_KEY" ]; then
+    URL="https://console.firebase.google.com/project/$GCP_PROJECT/settings/serviceaccounts/adminsdk"
+    echo "Firebase のサービスアカウント鍵が必要です: $URL →「新しい秘密鍵を生成」(JSON がダウンロードされます)"
+    command -v open >/dev/null 2>&1 && open "$URL" || true
+    latest="$(ls -t "$HOME"/Downloads/"$GCP_PROJECT"-*.json 2>/dev/null | head -n1 || true)"
+    printf '鍵ファイルのパス[%s]: ' "${latest:-なし}"; read -r SA_KEY </dev/tty
+    SA_KEY="${SA_KEY:-$latest}"
+  fi
+  [ -f "$SA_KEY" ] || die "鍵ファイルがありません: $SA_KEY"
+  here="$(cd "$(dirname "$0")" && pwd)"
+  (cd "$here/migrate" && npm ci --no-audit --no-fund --silent) || die "移行ツールの準備に失敗しました"
+  node "$here/migrate/export-firebase.mjs" "$SA_KEY" "$WORK/export.json" || die "Firebase からの書き出しに失敗しました"
+  scp -q -i "$ROOT_KEY" -o BatchMode=yes "$WORK/export.json" "root@$VPS_IP:/root/kyabacho-export.json"
+  rm -f "$WORK/export.json"
+  IMPORT="sudo -u $UNIT env DATA_DIR=$APP_ROOT/data node $APP_ROOT/app/import.js $APP_ROOT/data/import.json"
+  SSH_ROOT "set -e; install -o $UNIT -g $UNIT -m 600 /root/kyabacho-export.json $APP_ROOT/data/import.json; shred -u /root/kyabacho-export.json 2>/dev/null || rm -f /root/kyabacho-export.json; $IMPORT --dry-run" \
+    || { SSH_ROOT "rm -f $APP_ROOT/data/import.json"; die "移行データの確認で問題が見つかりました(上の表示を確認してください)"; }
+  REPLACE=""
+  st="$(db_status)"
+  if ! printf '%s' "$st" | grep -q '"docs":0,"users":0'; then
+    echo "VPS の DB には既にデータがあります(移行後にログインした分など): $st"
+    confirm "VPS 側のデータを消して、Firebase のデータで置き換えますか?" && REPLACE="--replace" || { SSH_ROOT "rm -f $APP_ROOT/data/import.json"; die "移行を中止しました"; }
+  fi
+  confirm "上の内容で取り込みます。よいですか?" || { SSH_ROOT "rm -f $APP_ROOT/data/import.json"; die "移行を中止しました"; }
+  SSH_ROOT "set -e; systemctl stop $UNIT; trap 'rm -f $APP_ROOT/data/import.json; systemctl start $UNIT' EXIT; $IMPORT $REPLACE" \
+    || die "取り込みに失敗しました(サービスは再開済み。データは変更されていません)"
+  ok "データ移行完了"
+  echo "  サービスアカウント鍵は強い権限を持つため、削除してください:"
+  echo "    - この Mac の $SA_KEY"
+  echo "    - https://console.cloud.google.com/iam-admin/serviceaccounts?project=$GCP_PROJECT の該当アカウント →「鍵」で削除"
 else
-  echo "AUTO_DEPLOY は設定しません(配備は Actions の Run workflow で手動)"
+  echo "移行しません(あとで: bash scripts/setup-vps.sh を再実行)"
 fi
 
 echo
 ok "完了: https://$DOMAIN"
-echo "残りの確認(手動): Google ログイン、顧客の登録・表示"
+echo "残りの確認(手動): Google ログイン → 以前の顧客が見えること、顧客の登録・表示"
+echo "旧サイト(Firebase Hosting の cabaret-diary.web.app)は残っています。二重に使われないよう、移行後は停止を検討してください。"

@@ -1,0 +1,12 @@
+{
+  "name": "kyabacho-migrate",
+  "private": true,
+  "type": "module",
+  "description": "Firebase(Firestore / Authentication)からキャバ帳サーバー(SQLite)への移行用。Mac で一度だけ使う。",
+  "dependencies": {
+    "firebase-admin": "^14.5.0"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  }
+}

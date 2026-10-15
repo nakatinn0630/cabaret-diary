@@ -1,3 +1,4 @@
+import { AI_ENABLED } from '../../lib/features'
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { deleteCustomer, useCustomer, useVisits } from '../../lib/customers'
@@ -228,7 +229,7 @@ export default function CustomerDetail() {
         )}
 
         {/* アクション */}
-        <div className="grid grid-cols-3 gap-2.5">
+        <div className={`grid gap-2.5 ${AI_ENABLED ? 'grid-cols-3' : 'grid-cols-1'}`}>
           <button
             type="button"
             onClick={() => setShowVisitForm(true)}
@@ -236,20 +237,25 @@ export default function CustomerDetail() {
           >
             ＋ 来店登録
           </button>
-          <button
-            type="button"
-            onClick={() => navigate(`/compat?cid=${c.id}`)}
-            className="min-h-[48px] rounded-2xl border border-night/15 dark:border-white/20 text-[13px] font-bold"
-          >
-            🔮 占い
-          </button>
-          <button
-            type="button"
-            onClick={() => navigate(`/reply?cid=${c.id}`)}
-            className="min-h-[48px] rounded-2xl border border-night/15 dark:border-white/20 text-[13px] font-bold"
-          >
-            💬 返信案
-          </button>
+          {/* 占い・返信案は生成AIの機能(蓋閉じ中は出さない) */}
+          {AI_ENABLED && (
+            <>
+            <button
+              type="button"
+              onClick={() => navigate(`/compat?cid=${c.id}`)}
+              className="min-h-[48px] rounded-2xl border border-night/15 dark:border-white/20 text-[13px] font-bold"
+            >
+              🔮 占い
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate(`/reply?cid=${c.id}`)}
+              className="min-h-[48px] rounded-2xl border border-night/15 dark:border-white/20 text-[13px] font-bold"
+            >
+              💬 返信案
+            </button>
+            </>
+          )}
         </div>
         <button
           type="button"

@@ -9,8 +9,8 @@ import {
   setDoc,
   where,
   Timestamp,
-} from 'firebase/firestore'
-import { auth, db } from './firebase'
+} from './fsdb'
+import { auth, db } from './backend'
 import { demoActive, demoProfile, demoMonthlyStats, demoShimeiCount } from './demo'
 
 /** 試用期間の自由レース（看板レース・うちわレース等）。名前・目標・現在値・単位を自由に設定。 */
