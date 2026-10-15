@@ -79,9 +79,14 @@ ok "gh: ログイン済み"
 SSH_ROOT true || die "VPS に root で SSH できません($ROOT_KEY)。鍵・ネットワークを確認してください"
 ok "VPS: root で接続できる"
 if [ -z "$EMAIL" ]; then
-  EMAIL="$(gh api user/emails -q '[.[]|select(.primary)][0].email' 2>/dev/null || true)"
+  # gh api は失敗時もエラー本文(JSON)を標準出力に出すため、メールの形のものだけ採用する
+  _is_mail() { printf '%s' "$1" | grep -Eq '^[^[:space:]@"{}]+@[^[:space:]@"{}]+\.[^[:space:]@"{}]+$'; }
+  _cand="$(gh api user/emails -q '[.[]|select(.primary)][0].email' 2>/dev/null || true)"
+  _is_mail "$_cand" || _cand="$(gh api user -q .email 2>/dev/null || true)"
+  _is_mail "$_cand" || _cand="$(git config --global user.email 2>/dev/null || true)"
+  _is_mail "$_cand" && EMAIL="$_cand"
 fi
-[ -n "$EMAIL" ] || die "証明書用のメールアドレスが分かりません。EMAIL=you@example.com bash $0 で指定してください"
+printf '%s' "$EMAIL" | grep -Eq '^[^[:space:]@]+@[^[:space:]@]+$' || die "証明書用のメールアドレスが分かりません。EMAIL=you@example.com bash $0 で指定してください"
 ok "証明書の連絡先: $EMAIL"
 
 # ---------- 1. DNS ----------
